@@ -1,17 +1,20 @@
 name: Build Android APK
+
 on:
-  workflow_dispatch: # 允许你在网页上点按钮手动触发
+  workflow_dispatch: # 手动触发
 
 jobs:
   build:
     name: 🏗 Build APK
     runs-on: ubuntu-latest
     steps:
+      # 升级到 v4
       - name: 📦 Check out Git repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
+      # 升级到 v4
       - name: ⚙️ Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: 18.x
           cache: npm
@@ -27,12 +30,11 @@ jobs:
         run: npm install
 
       - name: 🚀 Build APK (Local)
-        # 这里的 --local 是关键！它让 GitHub 的电脑干活，不排 Expo 的队。
-        # --profile preview 对应你 eas.json 里的 apk 配置
         run: eas build --platform android --profile preview --non-interactive --local --output=./forme.apk
 
+      # 核心修复：升级到 v4，解决报错
       - name: 📤 Upload APK
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: forme-apk
           path: ./forme.apk
