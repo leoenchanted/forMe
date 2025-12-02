@@ -1,18 +1,27 @@
-name: Build Android APK
+name: Build Android APK & Release
+
+permissions:
+  contents: write
 
 on:
-  workflow_dispatch: # 手动触发
+  workflow_dispatch:
 
 jobs:
   build:
-    name: 🏗 Build APK
+    name: 🏗 Build & Release
     runs-on: ubuntu-latest
     steps:
-      # 升级到 v4
       - name: 📦 Check out Git repository
         uses: actions/checkout@v4
 
-      # 升级到 v4
+      # --- 新增步骤：提取版本号 ---
+      # jq 是一个处理 JSON 的工具，GitHub 服务器自带
+      - name: 📖 Get Version from app.json
+        id: get_version
+        run: |
+          echo "APP_VERSION=$(jq -r .expo.version app.json)" >> $GITHUB_OUTPUT
+          echo "检测到版本号: $(jq -r .expo.version app.json)"
+
       - name: ⚙️ Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -29,11 +38,22 @@ jobs:
         run: npm install
 
       - name: 🚀 Build APK (Local)
-        run: eas build --platform android --profile preview --non-interactive --local --output=./forme.apk
+        # 输出文件名也带上版本号，方便区分
+        run: eas build --platform android --profile preview --non-interactive --local --output=./forme-v${{ steps.get_version.outputs.APP_VERSION }}.apk
 
-      # 核心修复：升级到 v4，解决报错
-      - name: 📤 Upload APK
-        uses: actions/upload-artifact@v4
+      - name: 🎉 Create Release
+        uses: ncipollo/release-action@v1
         with:
-          name: forme-apk
-          path: ./forme.apk
+          # 使用从 app.json 读出来的版本号
+          tag: "v${{ steps.get_version.outputs.APP_VERSION }}"
+          name: "v${{ steps.get_version.outputs.APP_VERSION }} - Major Update"
+          body: |
+            ## 更新日志
+            - 🎉 全新 UI 设计
+            - 📥 新增下载管理器 (实时进度显示)
+            - 🖼️ 修复 Android 权限问题
+            - 📱 更换了 App 图标
+          artifacts: "./forme-v${{ steps.get_version.outputs.APP_VERSION }}.apk"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          # 允许更新同一个 Release (防止你改了代码忘了改版本号报错)
+          allowUpdates: true
