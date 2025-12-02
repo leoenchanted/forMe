@@ -40,8 +40,8 @@
       [
         "expo-media-library",
         {
-          "photosPermission": "Allow VibeWall to save wallpapers to your photos.",
-          "savePhotosPermission": "Allow VibeWall to save wallpapers to your photos.",
+          "photosPermission": "Allow forme to save wallpapers to your photos.",
+          "savePhotosPermission": "Allow forme to save wallpapers to your photos.",
           "isAccessMediaLocationEnabled": true
         }
       ]
