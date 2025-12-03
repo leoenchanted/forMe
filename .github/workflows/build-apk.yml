@@ -14,11 +14,14 @@ jobs:
       - name: 📦 Check out Git repository
         uses: actions/checkout@v4
 
-      - name: 📖 Get Version from app.json
+      - name: 📖 Get Version from app.config.js
         id: get_version
+        # 这里用 grep 提取 version，因为 app.config.js 是 JS 文件不是 JSON
+        # 这种写法比较粗暴但有效：提取 version: "x.x.x" 中的 x.x.x
         run: |
-          echo "APP_VERSION=$(jq -r .expo.version app.json)" >> $GITHUB_OUTPUT
-          echo "检测到版本号: $(jq -r .expo.version app.json)"
+          VER=$(grep -o 'version: "[^"]*"' app.config.js | cut -d'"' -f2)
+          echo "APP_VERSION=$VER" >> $GITHUB_OUTPUT
+          echo "Detected Version: $VER"
 
       - name: ⚙️ Setup Node.js
         uses: actions/setup-node@v4
@@ -36,38 +39,29 @@ jobs:
         run: npm install
 
       - name: 🚀 Build APK (Local)
-        # 输出文件名带上版本号
+        # --profile preview 对应正式版配置
         run: eas build --platform android --profile preview --non-interactive --local --output=./forme-v${{ steps.get_version.outputs.APP_VERSION }}.apk
 
-      # --- 核心修改：更新日志文案 ---
       - name: 🎉 Create Release
         uses: ncipollo/release-action@v1
         with:
           tag: "v${{ steps.get_version.outputs.APP_VERSION }}"
-          name: "v${{ steps.get_version.outputs.APP_VERSION }} - Download Manager & UI Polish"
+          name: "v${{ steps.get_version.outputs.APP_VERSION }} - OTA Enabled & Icon Fix"
           body: |
-            ## 🚀 v1.1.1 更新日志
+            ## 🚀 v1.1.2 更新日志 (里程碑版本)
 
-            ### 📥 下载中心大升级 (Download Manager)
-            - **实时数据**：新增下载进度显示 (例如: `2.5MB / 5.0MB`)。
-            - **任务管理**：支持 **暂停/停止** 下载任务。
-            - **后台下载**：退出详情页后下载任务仍在后台继续。
-            - **智能逻辑**：优化任务去重与失败重试机制。
+            ### ✨ 重大更新
+            - **🔥 热更新 (OTA) 支持**：已注入更新配置，未来小修小补无需重装 App。
+            - **🎨 图标修复**：修复了正式版桌面图标显示为 Expo 默认 Logo 的问题。
+            - **🛡️ 权限优化**：App 启动时自动检查相册权限，被拒后引导至设置页，解决无法下载的问题。
 
-            ### 🎨 UI/UX 体验优化
-            - **沉浸式交互**：移除原生 Alert，全面启用自定义 **黑色胶囊弹窗 (Toast)**。
-            - **全新菜单**：右上角新增悬浮菜单 (Favorites / Downloads / Settings)。
-            - **列表升级**：搜索结果采用 **动态高度布局**，并增加 **横竖屏角标** 提示。
-            - **细节打磨**：修复每日推荐点击时的白色背景闪烁问题；详情页新增“复制原图链接”按钮。
+            ### 📱 功能完善
+            - 浏览量 (Views) 数据现在可以正确加载。
+            - 下载任务支持防重复点击。
+            - 搜索列表布局优化。
 
-            ### 🐛 核心修复 (Bug Fixes)
-            - 修复 Android 13+ 保存相册权限导致崩溃的问题。
-            - 修复 `String cannot be cast to Boolean` 导致的启动崩溃。
-            - 修复 App 图标在部分机型显示为默认 Expo Logo 的问题。
-            - 修复详情页浏览量 (Views) 数据不显示的问题。
-            
             ---
-            *Built with ❤️ by Expo & GitHub Actions*
+            *此版本为“基准包”，建议所有用户更新。*
           artifacts: "./forme-v${{ steps.get_version.outputs.APP_VERSION }}.apk"
           token: ${{ secrets.GITHUB_TOKEN }}
           allowUpdates: true

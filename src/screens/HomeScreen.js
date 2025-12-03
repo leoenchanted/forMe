@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, StatusBar } from 'react-native';
+// 1. 顶部引入 Linking, Alert, MediaLibrary
+import { 
+  StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, 
+  ActivityIndicator, StatusBar, Alert, Linking // <--- 新增 Linking
+} from 'react-native';
+import * as MediaLibrary from 'expo-media-library'; // <--- 新增
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { fetchUnsplash } from '../api/unsplash';
@@ -29,7 +34,7 @@ export default function HomeScreen({ navigation }) {
   const [searched, setSearched] = useState(false);
   const [page, setPage] = useState(1);
 
-  useEffect(() => { loadKey(); generateSmartSuggestions(); }, []);
+  useEffect(() => { loadKey(); generateSmartSuggestions(); checkAndRequestPermission(); }, []);
   useEffect(() => { if (apiKey && !dailyLandscape) refreshDaily(); }, [apiKey]);
 
   // 核心修复：监听筛选方向变化，自动触发搜索
@@ -44,6 +49,35 @@ export default function HomeScreen({ navigation }) {
     if (key) setApiKey(key); else setShowSettings(true);
   };
 
+   // 3. 新增权限检查逻辑
+  const checkAndRequestPermission = async () => {
+    try {
+      // 先看现在的状态
+      const existingStatus = await MediaLibrary.getPermissionsAsync();
+      
+      let finalStatus = existingStatus.status;
+
+      // 如果还没决定 (undetermined) 或者 之前拒绝了但还能弹窗 (canAskAgain)
+      if (existingStatus.status !== 'granted' && existingStatus.canAskAgain) {
+        const newPermission = await MediaLibrary.requestPermissionsAsync();
+        finalStatus = newPermission.status;
+      }
+
+      // 如果最终还是拒绝，并且不能再弹窗了 (代表用户点了不再询问)
+      if (finalStatus !== 'granted' && !existingStatus.canAskAgain) {
+        Alert.alert(
+          "需要权限",
+          "保存壁纸需要访问相册权限。检测到您之前已拒绝，请前往设置手动开启。",
+          [
+            { text: "取消", style: "cancel" },
+            { text: "去设置", onPress: () => Linking.openSettings() } // <--- 直接跳去设置页
+          ]
+        );
+      }
+    } catch (e) {
+      console.log("Permission check failed", e);
+    }
+  };
   const generateSmartSuggestions = () => { setSuggestedKeywords(["Cyberpunk", "Minimalist", "Nature"]); setSmartPlaceholder("Search vibes..."); };
   
   const refreshDaily = async () => {

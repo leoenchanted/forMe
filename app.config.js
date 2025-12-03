@@ -5,7 +5,7 @@ export default {
   expo: {
     name: IS_DEV ? "forme (Dev)" : "forMe", // 开发版名字不一样
     slug: "forMe",
-    version: "1.1.1",
+    version: "1.1.2",
     orientation: "portrait",
     icon: "./assets/icon.png",
     userInterfaceStyle: "light",
@@ -42,6 +42,17 @@ export default {
         }
       ]
     ],
+        // 1. 定义运行时版本 (告诉系统这个更新包兼容哪个版本的 App)
+    runtimeVersion: {
+      policy: "appVersion" 
+    },
+    
+    // 2. 定义更新服务器地址
+    updates: {
+      url: "https://u.expo.dev/e3327d5b-e82a-4111-950f-affc5497935c" 
+    },
+
+    // 👆👆👆 新增结束 👆👆👆
     extra: {
       eas: {
         projectId: "e3327d5b-e82a-4111-950f-affc5497935c" // ⚠️ 如果你之前删了这一行，这里不填也没事，EAS会自动识别
