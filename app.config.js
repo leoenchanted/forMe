@@ -3,8 +3,8 @@ const IS_PREVIEW = process.env.APP_VARIANT === 'preview';
 
 export default {
   expo: {
-    name: IS_DEV ? "forme (Dev)" : "forme", // 开发版名字不一样
-    slug: "forme",
+    name: IS_DEV ? "forme (Dev)" : "forMe", // 开发版名字不一样
+    slug: "forMe",
     version: "1.1.0",
     orientation: "portrait",
     icon: "./assets/icon.png",
