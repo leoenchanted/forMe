@@ -19,7 +19,7 @@ export default {
     ],
     ios: {
       "supportsTablet": true,
-      "bundleIdentifier": IS_DEV ? "com.yourname.forme.dev" : "com.yourname.forme"
+      "bundleIdentifier": IS_DEV ? "com.leoenchanted.forMe.dev" : "com.leoenchanted.forMe"
     },
     android: {
       "adaptiveIcon": {
@@ -27,7 +27,7 @@ export default {
         "backgroundColor": "#ffffff"
       },
       // 核心修改：如果是开发版，包名后面加 .dev，这样就能共存了！
-      "package": IS_DEV ? "com.yourname.forme.dev" : "com.yourname.forMe"
+      "package": IS_DEV ? "com.leoenchanted.forMe.dev" : "com.leoenchanted.forMe"
     },
     web: {
       "favicon": "./assets/favicon.png"
