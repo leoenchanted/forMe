@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, StatusBar, Alert } from 'react-native';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { fetchUnsplash } from '../api/unsplash';
@@ -14,13 +14,16 @@ export default function HomeScreen({ navigation }) {
   const [apiKey, setApiKey] = useState('');
   const [showSettings, setShowSettings] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  
   const [dailyLandscape, setDailyLandscape] = useState(null);
   const [dailyPortrait, setDailyPortrait] = useState(null);
   const [loadingDaily, setLoadingDaily] = useState(false);
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [smartPlaceholder, setSmartPlaceholder] = useState('Search...');
   const [suggestedKeywords, setSuggestedKeywords] = useState([]);
   const [searchOrientation, setSearchOrientation] = useState('portrait');
+  
   const [searchResults, setSearchResults] = useState([]);
   const [loadingSearch, setLoadingSearch] = useState(false);
   const [searched, setSearched] = useState(false);
@@ -29,11 +32,20 @@ export default function HomeScreen({ navigation }) {
   useEffect(() => { loadKey(); generateSmartSuggestions(); }, []);
   useEffect(() => { if (apiKey && !dailyLandscape) refreshDaily(); }, [apiKey]);
 
+  // 核心修复：监听筛选方向变化，自动触发搜索
+  useEffect(() => {
+    if (searchQuery && searched) {
+      performSearch(true);
+    }
+  }, [searchOrientation]);
+
   const loadKey = async () => {
     const key = await getApiKey();
     if (key) setApiKey(key); else setShowSettings(true);
   };
+
   const generateSmartSuggestions = () => { setSuggestedKeywords(["Cyberpunk", "Minimalist", "Nature"]); setSmartPlaceholder("Search vibes..."); };
+  
   const refreshDaily = async () => {
     setLoadingDaily(true);
     const land = await fetchUnsplash('/photos/random', { orientation: 'landscape', query: 'wallpaper' }, apiKey);
@@ -42,6 +54,7 @@ export default function HomeScreen({ navigation }) {
     if (port && !port.errors) setDailyPortrait(port);
     setLoadingDaily(false);
   };
+
   const performSearch = async (resetPage = true) => {
     if (!searchQuery) return;
     setLoadingSearch(true);
@@ -56,12 +69,14 @@ export default function HomeScreen({ navigation }) {
     }
     setLoadingSearch(false);
   };
+
   const handleSaveKey = async (k) => { await storeApiKey(k); setApiKey(k); setShowSettings(false); };
   const openDetail = (photo) => navigation.navigate('Detail', { photo });
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="dark-content" backgroundColor="#f8fafc" />
+      
       <View style={styles.header}>
         <View>
             <Text style={styles.appTitle}>VibeWall</Text>

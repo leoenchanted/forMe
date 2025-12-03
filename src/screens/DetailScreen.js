@@ -5,16 +5,18 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 
-import { downloadImage } from '../utils/downloader';
-import { useDownloads } from '../context/DownloadContext'; // 引入Hook
-import { toggleFavorite, checkIsFavorite } from '../utils/storage';
+import { useDownloads } from '../context/DownloadContext';
+import { toggleFavorite, checkIsFavorite, getApiKey } from '../utils/storage';
+import { fetchUnsplash } from '../api/unsplash'; // 引入请求工具
 import Toast from '../components/Toast';
 
 const { width, height } = Dimensions.get('window');
 
 export default function DetailScreen({ route, navigation }) {
-  const { photo } = route.params;
-  const { startDownload } = useDownloads(); // 获取下载方法
+  const { photo: initialPhoto } = route.params; // 重命名为初始数据
+  const [photo, setPhoto] = useState(initialPhoto); // 用 state 存储数据，方便更新
+  
+  const { startDownload } = useDownloads();
   const [isFav, setIsFav] = useState(false);
   
   // Toast 状态
@@ -24,7 +26,17 @@ export default function DetailScreen({ route, navigation }) {
 
   useEffect(() => {
     checkFavStatus();
+    loadFullStats(); // 加载完整数据(包含浏览量)
   }, []);
+
+  const loadFullStats = async () => {
+    const apiKey = await getApiKey();
+    // 请求单张图片详情
+    const data = await fetchUnsplash(`/photos/${initialPhoto.id}`, {}, apiKey);
+    if (data && !data.errors) {
+      setPhoto(data); // 更新 UI 显示完整数据
+    }
+  };
 
   const checkFavStatus = async () => {
     const status = await checkIsFavorite(photo.id);
@@ -37,14 +49,9 @@ export default function DetailScreen({ route, navigation }) {
     showToast(newStatus ? "Added to Collection" : "Removed from Collection");
   };
 
-  // 替换原来的 handleDownload
   const handleDownload = () => {
-    // 1. 开始后台下载
     startDownload(photo);
-    // 2. 提示用户
     showToast("Added to Download Queue!", 'success');
-    // 3. (可选) 自动跳转去看进度，或者留在原地
-    // navigation.navigate('Downloads'); 
   };
 
   const handleCopyLink = async () => {
@@ -83,7 +90,6 @@ export default function DetailScreen({ route, navigation }) {
                     <Image source={{ uri: photo.user.profile_image.medium }} style={styles.avatar} />
                     <Text style={styles.username}>{photo.user.name}</Text>
                 </View>
-                {/* 复制链接小按钮 */}
                 <TouchableOpacity onPress={handleCopyLink} style={styles.copyBtn}>
                     <Ionicons name="link" size={16} color="#fff" />
                     <Text style={{color:'#fff', fontSize:10, fontFamily:'Poppins_600SemiBold'}}>LINK</Text>
@@ -91,6 +97,7 @@ export default function DetailScreen({ route, navigation }) {
             </View>
 
             <View style={styles.statsGrid}>
+                {/* 这里的 views 现在会自动更新显示了 */}
                 <StatItem icon="eye" value={photo.views} label="Views" />
                 <StatItem icon="heart" value={photo.likes} label="Likes" />
                 <StatItem icon="scan" value={`${photo.width}x${photo.height}`} label="Res" />
@@ -105,7 +112,6 @@ export default function DetailScreen({ route, navigation }) {
         </View>
       </LinearGradient>
 
-      {/* 自定义提示框 */}
       <Toast visible={toastVisible} message={toastMsg} type={toastType} onHide={() => setToastVisible(false)} />
     </View>
   );
@@ -115,7 +121,7 @@ const StatItem = ({ icon, value, label }) => (
     <View style={styles.statItem}>
         <Ionicons name={icon} size={18} color="#94a3b8" />
         <View>
-            <Text style={styles.statValue}>{value || '-'}</Text>
+            <Text style={styles.statValue}>{value ? value.toLocaleString() : '-'}</Text>
             <Text style={styles.statLabel}>{label}</Text>
         </View>
     </View>
