@@ -14,8 +14,6 @@ jobs:
       - name: 📦 Check out Git repository
         uses: actions/checkout@v4
 
-      # --- 新增步骤：提取版本号 ---
-      # jq 是一个处理 JSON 的工具，GitHub 服务器自带
       - name: 📖 Get Version from app.json
         id: get_version
         run: |
@@ -38,22 +36,38 @@ jobs:
         run: npm install
 
       - name: 🚀 Build APK (Local)
-        # 输出文件名也带上版本号，方便区分
+        # 输出文件名带上版本号
         run: eas build --platform android --profile preview --non-interactive --local --output=./forme-v${{ steps.get_version.outputs.APP_VERSION }}.apk
 
+      # --- 核心修改：更新日志文案 ---
       - name: 🎉 Create Release
         uses: ncipollo/release-action@v1
         with:
-          # 使用从 app.json 读出来的版本号
           tag: "v${{ steps.get_version.outputs.APP_VERSION }}"
-          name: "v${{ steps.get_version.outputs.APP_VERSION }} - Major Update"
+          name: "v${{ steps.get_version.outputs.APP_VERSION }} - Download Manager & UI Polish"
           body: |
-            ## 更新日志
-            - 🎉 全新 UI 设计
-            - 📥 新增下载管理器 (实时进度显示)
-            - 🖼️ 修复 Android 权限问题
-            - 📱 更换了 App 图标
+            ## 🚀 v1.1.1 更新日志
+
+            ### 📥 下载中心大升级 (Download Manager)
+            - **实时数据**：新增下载进度显示 (例如: `2.5MB / 5.0MB`)。
+            - **任务管理**：支持 **暂停/停止** 下载任务。
+            - **后台下载**：退出详情页后下载任务仍在后台继续。
+            - **智能逻辑**：优化任务去重与失败重试机制。
+
+            ### 🎨 UI/UX 体验优化
+            - **沉浸式交互**：移除原生 Alert，全面启用自定义 **黑色胶囊弹窗 (Toast)**。
+            - **全新菜单**：右上角新增悬浮菜单 (Favorites / Downloads / Settings)。
+            - **列表升级**：搜索结果采用 **动态高度布局**，并增加 **横竖屏角标** 提示。
+            - **细节打磨**：修复每日推荐点击时的白色背景闪烁问题；详情页新增“复制原图链接”按钮。
+
+            ### 🐛 核心修复 (Bug Fixes)
+            - 修复 Android 13+ 保存相册权限导致崩溃的问题。
+            - 修复 `String cannot be cast to Boolean` 导致的启动崩溃。
+            - 修复 App 图标在部分机型显示为默认 Expo Logo 的问题。
+            - 修复详情页浏览量 (Views) 数据不显示的问题。
+            
+            ---
+            *Built with ❤️ by Expo & GitHub Actions*
           artifacts: "./forme-v${{ steps.get_version.outputs.APP_VERSION }}.apk"
           token: ${{ secrets.GITHUB_TOKEN }}
-          # 允许更新同一个 Release (防止你改了代码忘了改版本号报错)
           allowUpdates: true
