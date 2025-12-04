@@ -1,8 +1,6 @@
 name: Build Android APK & Release
-
 permissions:
   contents: write
-
 on:
   workflow_dispatch:
 
@@ -14,14 +12,20 @@ jobs:
       - name: 📦 Check out Git repository
         uses: actions/checkout@v4
 
-      - name: 📖 Get Version from app.config.js
-        id: get_version
-        # 这里用 grep 提取 version，因为 app.config.js 是 JS 文件不是 JSON
-        # 这种写法比较粗暴但有效：提取 version: "x.x.x" 中的 x.x.x
+      # 🔥 核心：增加 Swap 空间，防止 OOM 爆内存
+      - name: 💾 Increase Swap Space
         run: |
-          VER=$(grep -o 'version: "[^"]*"' app.config.js | cut -d'"' -f2)
-          echo "APP_VERSION=$VER" >> $GITHUB_OUTPUT
-          echo "Detected Version: $VER"
+          sudo swapoff -a
+          sudo fallocate -l 10G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+          sudo swapon --show
+
+      - name: 📖 Get Version
+        id: get_version
+        run: |
+          echo "APP_VERSION=$(jq -r .expo.version app.config.js || jq -r .expo.version app.json)" >> $GITHUB_OUTPUT
 
       - name: ⚙️ Setup Node.js
         uses: actions/setup-node@v4
@@ -38,31 +42,16 @@ jobs:
       - name: 📦 Install dependencies
         run: npm install
 
-
+      # 建议加上 --clear-cache 确保 Gradle 配置生效
       - name: 🚀 Build APK (Local)
-        # --profile preview 对应正式版配置
-        run: eas build --platform android --profile preview --non-interactive --local --output=./forme-v${{ steps.get_version.outputs.APP_VERSION }}.apk
+        run: eas build --platform android --profile preview --non-interactive --local --clear-cache --output=./forme.apk
 
       - name: 🎉 Create Release
         uses: ncipollo/release-action@v1
         with:
           tag: "v${{ steps.get_version.outputs.APP_VERSION }}"
-          name: "v${{ steps.get_version.outputs.APP_VERSION }} - OTA Enabled & Icon Fix"
-          body: |
-            ## 🚀 v1.1.2 更新日志 (里程碑版本)
-
-            ### ✨ 重大更新
-            - **🔥 热更新 (OTA) 支持**：已注入更新配置，未来小修小补无需重装 App。
-            - **🎨 图标修复**：修复了正式版桌面图标显示为 Expo 默认 Logo 的问题。
-            - **🛡️ 权限优化**：App 启动时自动检查相册权限，被拒后引导至设置页，解决无法下载的问题。
-
-            ### 📱 功能完善
-            - 浏览量 (Views) 数据现在可以正确加载。
-            - 下载任务支持防重复点击。
-            - 搜索列表布局优化。
-
-            ---
-            *此版本为“基准包”，建议所有用户更新。*
-          artifacts: "./forme-v${{ steps.get_version.outputs.APP_VERSION }}.apk"
+          name: "v${{ steps.get_version.outputs.APP_VERSION }} Release"
+          body: "GitHub Actions 自动构建版本，包含 expo-updates 支持。"
+          artifacts: "./forme.apk"
           token: ${{ secrets.GITHUB_TOKEN }}
           allowUpdates: true

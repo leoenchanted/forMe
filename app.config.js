@@ -1,11 +1,29 @@
+const { withGradleProperties } = require('@expo/config-plugins');
+
 const IS_DEV = process.env.APP_VARIANT === 'development';
 const IS_PREVIEW = process.env.APP_VARIANT === 'preview';
 
-export default {
-  expo: {
+// 1. 定义内存优化插件 (解决 GitHub Actions OOM 问题)
+const withMemoryOptimization = (config) => {
+  return withGradleProperties(config, (config) => {
+    config.modResults = config.modResults.filter(
+      item => !['org.gradle.jvmargs', 'org.gradle.parallel', 'org.gradle.daemon'].includes(item.key)
+    );
+    config.modResults.push(
+      { type: 'property', key: 'org.gradle.jvmargs', value: '-Xmx3072m -XX:MaxMetaspaceSize=512m' },
+      { type: 'property', key: 'org.gradle.parallel', value: 'false' },
+      { type: 'property', key: 'org.gradle.daemon', value: 'false' }
+    );
+    return config;
+  });
+};
+
+export default ({config}) => {
+  const updatedConfig = {
+    ...config,
     name: IS_DEV ? "forme (Dev)" : "forMe", // 开发版名字不一样
     slug: "forMe",
-    version: "1.1.3",
+    version: "1.1.4",
     orientation: "portrait",
     icon: "./assets/icon.png",
     userInterfaceStyle: "light",
@@ -43,21 +61,23 @@ export default {
         }
       ]
     ],
-    //     // 1. 定义运行时版本 (告诉系统这个更新包兼容哪个版本的 App)
-    // runtimeVersion: {
-    //   policy: "appVersion" 
-    // },
+        // 1. 定义运行时版本 (告诉系统这个更新包兼容哪个版本的 App)
+    runtimeVersion: {
+      policy: "appVersion" 
+    },
     
-    // // 2. 定义更新服务器地址
-    // updates: {
-    //   url: "https://u.expo.dev/e3327d5b-e82a-4111-950f-affc5497935c" 
-    // },
+    // 2. 定义更新服务器地址
+    updates: {
+      url: "https://u.expo.dev/e3327d5b-e82a-4111-950f-affc5497935c" 
+    },
 
-    // // 👆👆👆 新增结束 👆👆👆
+    // 👆👆👆 新增结束 👆👆👆
     extra: {
       eas: {
         projectId: "e3327d5b-e82a-4111-950f-affc5497935c" // ⚠️ 如果你之前删了这一行，这里不填也没事，EAS会自动识别
       }
     }
   }
+
+  return withMemoryOptimization(updatedConfig);
 };
