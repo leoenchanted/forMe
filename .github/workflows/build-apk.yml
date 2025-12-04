@@ -38,6 +38,7 @@ jobs:
       - name: 📦 Install dependencies
         run: npm install
 
+
       - name: 🚀 Build APK (Local)
         # --profile preview 对应正式版配置
         run: eas build --platform android --profile preview --non-interactive --local --output=./forme-v${{ steps.get_version.outputs.APP_VERSION }}.apk
