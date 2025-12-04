@@ -9,7 +9,7 @@ on:
 jobs:
   build:
     name: 🏗 Build & Release
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     steps:
       - name: 📦 Check out Git repository
         uses: actions/checkout@v4
@@ -38,19 +38,6 @@ jobs:
       - name: 📦 Install dependencies
         run: npm install
 
-              # ===============================
-      # 🔧 下面是我改动的地方
-      # 主要目的是增加 Gradle 内存，避免 OOM，保证 expo-updates 本地构建成功
-      - name: 🔧 Configure Gradle memory
-        run: |
-          # 拉大 JVM 堆内存到 6GB
-          echo "org.gradle.jvmargs=-Xmx6144m -XX:MaxMetaspaceSize=2048m -Dfile.encoding=UTF-8" >> android/gradle.properties
-          # 关闭 Gradle daemon，减少内存碎片
-          echo "org.gradle.daemon=false" >> android/gradle.properties
-          # 确保 AndroidX 支持
-          echo "android.useAndroidX=true" >> android/gradle.properties
-          echo "android.enableJetifier=true" >> android/gradle.properties
-      # ===============================
 
       - name: 🚀 Build APK (Local)
         # --profile preview 对应正式版配置
