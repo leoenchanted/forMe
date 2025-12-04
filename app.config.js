@@ -5,7 +5,7 @@ export default {
   expo: {
     name: IS_DEV ? "forme (Dev)" : "forMe", // 开发版名字不一样
     slug: "forMe",
-    version: "1.1.2",
+    version: "1.1.3",
     orientation: "portrait",
     icon: "./assets/icon.png",
     userInterfaceStyle: "light",
@@ -27,7 +27,8 @@ export default {
         "backgroundColor": "#ffffff"
       },
       // 核心修改：如果是开发版，包名后面加 .dev，这样就能共存了！
-      "package": IS_DEV ? "com.leoenchanted.forMe.dev" : "com.leoenchanted.forMe"
+      "package": IS_DEV ? "com.leoenchanted.forMe.dev" : "com.leoenchanted.forMe",
+      "permissions":["REQUEST_INSTALL_PACKAGES"]
     },
     web: {
       "favicon": "./assets/favicon.png"
