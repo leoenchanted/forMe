@@ -48,10 +48,14 @@ jobs:
           echo "Swap enabled:"
           sudo swapon --show
 
-      - name: 📖 Get Version
+      - name: 📖 Get Version from app.config.js
         id: get_version
+        # 这里用 grep 提取 version，因为 app.config.js 是 JS 文件不是 JSON
+        # 这种写法比较粗暴但有效：提取 version: "x.x.x" 中的 x.x.x
         run: |
-          echo "APP_VERSION=$(jq -r '.expo.version // empty' app.config.js)" >> $GITHUB_OUTPUT
+          VER=$(grep -o 'version: "[^"]*"' app.config.js | cut -d'"' -f2)
+          echo "APP_VERSION=$VER" >> $GITHUB_OUTPUT
+          echo "Detected Version: $VER"
 
       - name: ⚙️ Setup Node.js
         uses: actions/setup-node@v4
