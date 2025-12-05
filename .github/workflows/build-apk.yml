@@ -1,31 +1,57 @@
 name: Build Android APK & Release
-permissions:
-  contents: write
 on:
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
     name: 🏗 Build & Release
     runs-on: ubuntu-latest
+    env:
+      APP_VARIANT: preview
+
     steps:
       - name: 📦 Check out Git repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
-      # 🔥 核心：增加 Swap 空间，防止 OOM 爆内存
-      - name: 💾 Increase Swap Space
+      # 🔥 关键：先清理磁盘，再创建小容量 swap
+      - name: 🧹 Free up disk space FIRST
         run: |
-          sudo swapoff -a
-          sudo fallocate -l 10G /swapfile
+          # 清理系统垃圾
+          sudo apt clean
+          sudo apt autoremove -y
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost
+          
+          # 精简 Android SDK（只保留必要组件）
+          sudo rm -rf /usr/local/lib/android/sdk/{system-images,emulator,sources,docs}
+          
+          # 只保留一个 platform（如 android-34）
+          if [ -d "/usr/local/lib/android/sdk/platforms/android-34" ]; then
+            sudo mv /usr/local/lib/android/sdk/platforms/android-34 /tmp/
+            sudo rm -rf /usr/local/lib/android/sdk/platforms/*
+            sudo mv /tmp/android-34 /usr/local/lib/android/sdk/platforms/
+          fi
+
+      # 💾 创建 3GB Swap（足够防 OOM，又不至于吃光磁盘）
+      - name: 💾 Create 3GB Swap (Balance RAM vs Disk)
+        run: |
+          echo "Current free space:"
+          df -h
+          sudo fallocate -l 3G /swapfile
           sudo chmod 600 /swapfile
           sudo mkswap /swapfile
           sudo swapon /swapfile
+          echo "Swap enabled:"
           sudo swapon --show
 
       - name: 📖 Get Version
         id: get_version
         run: |
-          echo "APP_VERSION=$(jq -r .expo.version app.config.js || jq -r .expo.version app.json)" >> $GITHUB_OUTPUT
+          echo "APP_VERSION=$(jq -r '.expo.version // empty' app.config.js)" >> $GITHUB_OUTPUT
 
       - name: ⚙️ Setup Node.js
         uses: actions/setup-node@v4
@@ -42,16 +68,31 @@ jobs:
       - name: 📦 Install dependencies
         run: npm install
 
-      # 建议加上 --clear-cache 确保 Gradle 配置生效
+      # ✅ 本地构建（你的核心需求：避免 EAS 排队）
       - name: 🚀 Build APK (Local)
         run: eas build --platform android --profile preview --non-interactive --local --clear-cache --output=./forme.apk
+
+      # 🧹 构建后立即释放所有缓存（包括 swap 文件！）
+      - name: 🧹 Post-build cleanup
+        if: always()
+        run: |
+          # 删除 swap 文件，回收磁盘
+          sudo swapoff /swapfile || true
+          sudo rm -f /swapfile || true
+          
+          # 清理构建缓存
+          rm -rf ~/.gradle/caches ~/.gradle/wrapper
+          rm -rf $HOME/.npm/_cacache
+          
+          echo "Final disk usage:"
+          df -h
 
       - name: 🎉 Create Release
         uses: ncipollo/release-action@v1
         with:
           tag: "v${{ steps.get_version.outputs.APP_VERSION }}"
           name: "v${{ steps.get_version.outputs.APP_VERSION }} Release"
-          body: "GitHub Actions 自动构建版本，包含 expo-updates 支持。"
+          body: "GitHub Actions 本地构建版本，支持 expo-updates。"
           artifacts: "./forme.apk"
           token: ${{ secrets.GITHUB_TOKEN }}
           allowUpdates: true
