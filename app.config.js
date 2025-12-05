@@ -10,7 +10,7 @@ const withMemoryOptimization = (config) => {
       item => !['org.gradle.jvmargs', 'org.gradle.parallel', 'org.gradle.daemon'].includes(item.key)
     );
     config.modResults.push(
-      { type: 'property', key: 'org.gradle.jvmargs', value: '-Xmx3072m -XX:MaxMetaspaceSize=512m' },
+      { type: 'property', key: 'org.gradle.jvmargs', value: '-Xmx3072m -XX:MaxMetaspaceSize=1024m' },
       { type: 'property', key: 'org.gradle.parallel', value: 'false' },
       { type: 'property', key: 'org.gradle.daemon', value: 'false' }
     );
