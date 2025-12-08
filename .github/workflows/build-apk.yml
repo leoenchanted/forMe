@@ -18,8 +18,8 @@ jobs:
         with:
           fetch-depth: 1
 
-      # 🔥 关键：先清理磁盘，再创建小容量 swap
-      - name: 🧹 Free up disk space FIRST
+      # 🔥 核心：增加 Swap 空间，防止 OOM 爆内存 (保留你的优化)
+      - name: 💾 Increase Swap Space
         run: |
           # 清理系统垃圾
           sudo apt clean
@@ -48,7 +48,8 @@ jobs:
           echo "Swap enabled:"
           sudo swapon --show
 
-      - name: 📖 Get Version from app.config.js
+      # 读取 app.config.js 里的版本号 (记得本地要把 version 改成 1.1.5)
+      - name: 📖 Get Version
         id: get_version
         # 这里用 grep 提取 version，因为 app.config.js 是 JS 文件不是 JSON
         # 这种写法比较粗暴但有效：提取 version: "x.x.x" 中的 x.x.x
@@ -72,7 +73,7 @@ jobs:
       - name: 📦 Install dependencies
         run: npm install
 
-      # ✅ 本地构建（你的核心需求：避免 EAS 排队）
+      # 使用 --clear-cache 确保干净构建
       - name: 🚀 Build APK (Local)
         run: eas build --platform android --profile preview --non-interactive --local --clear-cache --output=./forme.apk
 
@@ -95,8 +96,27 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           tag: "v${{ steps.get_version.outputs.APP_VERSION }}"
-          name: "v${{ steps.get_version.outputs.APP_VERSION }} Release"
-          body: "GitHub Actions 本地构建版本，支持 expo-updates。"
+          name: "v${{ steps.get_version.outputs.APP_VERSION }} - Super App Upgrade"
+          body: |
+            ## 🚀 v1.1.5 里程碑更新
+
+            ### 🌟 核心功能升级
+            - **DeepGlow Studio 集成**: 新增 WebGL 图像处理工具，支持辉光、色温调节，并可保存至相册。
+            - **全新架构**: 采用 Bottom Tab + Stack 混合导航，操作更流畅。
+            - **自定义首页**: 支持更换首页壁纸，集成天气与每日语录组件。
+
+            ### 🎨 UI/UX 交互焕新
+            - **悬浮 Tab 栏**: 全新设计的椭圆悬浮底部导航，带有平滑的背景跟随动画。
+            - **列表优化**: VibeWall 列表采用动态高度瀑布流，并增加横/竖屏角标提示。
+            - **沉浸式体验**: 优化全屏浏览和下载页面的视觉反馈。
+
+            ### 📥 下载中心 2.0
+            - **智能管理**: 支持任务排队、去重、失败重试。
+            - **数据可视化**: 显示具体的下载进度 (MB) 和状态。
+            - **权限修复**: 完美适配 Android 13+ 媒体权限。
+
+            ---
+            *Built with ❤️ by GitHub Actions*
           artifacts: "./forme.apk"
           token: ${{ secrets.GITHUB_TOKEN }}
           allowUpdates: true

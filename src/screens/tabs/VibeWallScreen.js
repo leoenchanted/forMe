@@ -1,21 +1,16 @@
 import React, { useState, useEffect } from 'react';
-// 1. 顶部引入 Linking, Alert, MediaLibrary
-import { 
-  StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, 
-  ActivityIndicator, StatusBar, Alert, Linking // <--- 新增 Linking
-} from 'react-native';
-import * as MediaLibrary from 'expo-media-library'; // <--- 新增
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { fetchUnsplash } from '../api/unsplash';
-import { getApiKey, storeApiKey } from '../utils/storage';
-import DailyCard from '../components/DailyCard';
-import FilterChip from '../components/FilterChip';
-import ImageGrid from '../components/ImageGrid';
-import SettingsModal from '../components/SettingsModal';
-import CustomMenu from '../components/CustomMenu';
+import { fetchUnsplash } from '../../api/unsplash'; 
+import { getApiKey, storeApiKey } from '../../utils/storage';
+import DailyCard from '../../components/DailyCard';
+import FilterChip from '../../components/FilterChip';
+import ImageGrid from '../../components/ImageGrid';
+import SettingsModal from '../../components/SettingsModal';
+import CustomMenu from '../../components/CustomMenu';
 
-export default function HomeScreen({ navigation }) {
+export default function VibeWallScreen({ navigation }) {
   const [apiKey, setApiKey] = useState('');
   const [showSettings, setShowSettings] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
@@ -23,21 +18,18 @@ export default function HomeScreen({ navigation }) {
   const [dailyLandscape, setDailyLandscape] = useState(null);
   const [dailyPortrait, setDailyPortrait] = useState(null);
   const [loadingDaily, setLoadingDaily] = useState(false);
-  
   const [searchQuery, setSearchQuery] = useState('');
   const [smartPlaceholder, setSmartPlaceholder] = useState('Search...');
   const [suggestedKeywords, setSuggestedKeywords] = useState([]);
   const [searchOrientation, setSearchOrientation] = useState('portrait');
-  
   const [searchResults, setSearchResults] = useState([]);
   const [loadingSearch, setLoadingSearch] = useState(false);
   const [searched, setSearched] = useState(false);
   const [page, setPage] = useState(1);
 
-  useEffect(() => { loadKey(); generateSmartSuggestions(); checkAndRequestPermission(); }, []);
+  useEffect(() => { loadKey(); generateSmartSuggestions(); }, []);
   useEffect(() => { if (apiKey && !dailyLandscape) refreshDaily(); }, [apiKey]);
 
-  // 核心修复：监听筛选方向变化，自动触发搜索
   useEffect(() => {
     if (searchQuery && searched) {
       performSearch(true);
@@ -46,38 +38,9 @@ export default function HomeScreen({ navigation }) {
 
   const loadKey = async () => {
     const key = await getApiKey();
-    if (key) setApiKey(key); else setShowSettings(true);
+    if (key) setApiKey(key); 
   };
 
-   // 3. 新增权限检查逻辑
-  const checkAndRequestPermission = async () => {
-    try {
-      // 先看现在的状态
-      const existingStatus = await MediaLibrary.getPermissionsAsync();
-      
-      let finalStatus = existingStatus.status;
-
-      // 如果还没决定 (undetermined) 或者 之前拒绝了但还能弹窗 (canAskAgain)
-      if (existingStatus.status !== 'granted' && existingStatus.canAskAgain) {
-        const newPermission = await MediaLibrary.requestPermissionsAsync();
-        finalStatus = newPermission.status;
-      }
-
-      // 如果最终还是拒绝，并且不能再弹窗了 (代表用户点了不再询问)
-      if (finalStatus !== 'granted' && !existingStatus.canAskAgain) {
-        Alert.alert(
-          "需要权限",
-          "保存壁纸需要访问相册权限。检测到您之前已拒绝，请前往设置手动开启。",
-          [
-            { text: "取消", style: "cancel" },
-            { text: "去设置", onPress: () => Linking.openSettings() } // <--- 直接跳去设置页
-          ]
-        );
-      }
-    } catch (e) {
-      console.log("Permission check failed", e);
-    }
-  };
   const generateSmartSuggestions = () => { setSuggestedKeywords(["Cyberpunk", "Minimalist", "Nature"]); setSmartPlaceholder("Search vibes..."); };
   
   const refreshDaily = async () => {
@@ -122,6 +85,7 @@ export default function HomeScreen({ navigation }) {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        
         <View style={styles.section}>
           <View style={{flexDirection:'row', justifyContent:'space-between', alignItems:'center', marginBottom: 12}}>
             <Text style={styles.sectionTitle}>Daily Picks</Text>
@@ -129,11 +93,19 @@ export default function HomeScreen({ navigation }) {
                <Ionicons name="refresh" size={16} color={loadingDaily ? "#cbd5e1" : "#6366f1"} style={loadingDaily ? {transform:[{rotate:'180deg'}]} : {}}/>
             </TouchableOpacity>
           </View>
+          
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dailyScroll}>
-            <TouchableOpacity activeOpacity={0.9} style={styles.dailyTouchWrapper} onPress={() => dailyLandscape && openDetail(dailyLandscape)}>
+            <TouchableOpacity 
+                activeOpacity={0.9} 
+                style={styles.dailyTouchWrapper}
+                onPress={() => dailyLandscape && openDetail(dailyLandscape)}>
                 <DailyCard photo={dailyLandscape} type="Desktop" onDownload={() => openDetail(dailyLandscape)} width={260} height={150} />
             </TouchableOpacity>
-            <TouchableOpacity activeOpacity={0.9} style={styles.dailyTouchWrapper} onPress={() => dailyPortrait && openDetail(dailyPortrait)}>
+
+            <TouchableOpacity 
+                activeOpacity={0.9} 
+                style={styles.dailyTouchWrapper}
+                onPress={() => dailyPortrait && openDetail(dailyPortrait)}>
                 <DailyCard photo={dailyPortrait} type="Mobile" onDownload={() => openDetail(dailyPortrait)} width={110} height={170} />
             </TouchableOpacity>
           </ScrollView>
@@ -147,11 +119,13 @@ export default function HomeScreen({ navigation }) {
               value={searchQuery} onChangeText={setSearchQuery} onSubmitEditing={() => performSearch(true)} returnKeyType="search"
             />
           </View>
+          
           <View style={styles.filterRow}>
              <FilterChip label="Landscape" active={searchOrientation === 'landscape'} onPress={() => setSearchOrientation('landscape')} />
              <FilterChip label="Portrait" active={searchOrientation === 'portrait'} onPress={() => setSearchOrientation('portrait')} />
              <FilterChip label="All" active={searchOrientation === ''} onPress={() => setSearchOrientation('')} />
           </View>
+          
           <View style={styles.keywordsRow}>
             {suggestedKeywords.map((w, i) => <TouchableOpacity key={i} onPress={() => {setSearchQuery(w);performSearch(true)}} style={styles.kChip}><Text style={styles.kText}>{w}</Text></TouchableOpacity>)}
           </View>
@@ -162,7 +136,9 @@ export default function HomeScreen({ navigation }) {
              <Text style={styles.sectionTitle}>Results</Text>
              {loadingSearch && page === 1 ? <ActivityIndicator size="large" color="#6366f1" /> : <ImageGrid results={searchResults} onDownload={openDetail} />}
              {searchResults.length > 0 && !loadingSearch && (
-               <TouchableOpacity onPress={() => performSearch(false)} style={styles.loadMoreBtn}><Text style={styles.loadMoreText}>Load More</Text></TouchableOpacity>
+               <TouchableOpacity onPress={() => performSearch(false)} style={styles.loadMoreBtn}>
+                 <Text style={styles.loadMoreText}>Load More</Text>
+               </TouchableOpacity>
              )}
           </View>
         )}
@@ -173,9 +149,10 @@ export default function HomeScreen({ navigation }) {
         visible={showMenu} 
         onClose={() => setShowMenu(false)} 
         onNavigateFav={() => navigation.navigate('Favorites')}
-        onNavigateSettings={() => setShowSettings(true)}
         onNavigateDownloads={() => navigation.navigate('Downloads')}
+        onNavigateSettings={() => setShowSettings(true)} 
       />
+      
       <SettingsModal visible={showSettings} currentKey={apiKey} onSave={handleSaveKey} onClose={() => setShowSettings(false)} />
     </SafeAreaView>
   );
@@ -194,12 +171,12 @@ const styles = StyleSheet.create({
   dailyTouchWrapper: { borderRadius: 20 }, 
   searchSection: { marginTop: 24 },
   searchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#e2e8f0', height: 50 },
-  input: { flex: 1, height: '100%', paddingHorizontal: 10, fontFamily: 'Poppins_400Regular' },
+  input: { flex: 1, height: '100%', paddingHorizontal: 10, fontFamily: 'Poppins_400Regular', color: '#334155' },
   filterRow: { flexDirection: 'row', marginTop: 12, gap: 8 },
   keywordsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 12 },
   kChip: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#fff', borderRadius: 20, borderWidth: 1, borderColor: '#e2e8f0' },
   kText: { fontSize: 11, color: '#64748b' },
   resultsSection: { marginTop: 30 },
   loadMoreBtn: { alignSelf: 'center', marginTop: 20, paddingVertical: 12, paddingHorizontal: 30, backgroundColor: '#fff', borderRadius: 30, borderWidth: 1, borderColor: '#e2e8f0' },
-  loadMoreText: { color: '#6366f1', fontFamily: 'Poppins_600SemiBold' },
+  loadMoreText: { fontSize: 14, fontFamily: 'Poppins_600SemiBold', color: '#6366f1' }, // 👈 固定的主题色
 });
