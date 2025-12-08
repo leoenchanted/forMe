@@ -24,12 +24,16 @@ export default function CustomMenu({ visible, onClose, onNavigateFav, onNavigate
                 <Text style={styles.menuText}>Downloads</Text>
               </TouchableOpacity>
 
-              <View style={styles.divider} />
-              
-              <TouchableOpacity onPress={() => { onClose(); onNavigateSettings(); }} style={styles.menuItem}>
-                <Ionicons name="key-outline" size={18} color="#64748b" />
-                <Text style={styles.menuText}>API Settings</Text>
-              </TouchableOpacity>
+              {/* 只有当传入了 onNavigateSettings 时才显示 API 设置 */}
+              {onNavigateSettings && (
+                <>
+                  <View style={styles.divider} />
+                  <TouchableOpacity onPress={() => { onClose(); onNavigateSettings(); }} style={styles.menuItem}>
+                    <Ionicons name="key-outline" size={18} color="#64748b" />
+                    <Text style={styles.menuText}>API Settings</Text>
+                  </TouchableOpacity>
+                </>
+              )}
 
             </View>
           </TouchableWithoutFeedback>

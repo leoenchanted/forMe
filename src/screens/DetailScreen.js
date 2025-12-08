@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, ScrollView, Dimensions, StatusBar } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity, Dimensions, StatusBar, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,34 +7,44 @@ import * as Clipboard from 'expo-clipboard';
 
 import { useDownloads } from '../context/DownloadContext';
 import { toggleFavorite, checkIsFavorite, getApiKey } from '../utils/storage';
-import { fetchUnsplash } from '../api/unsplash'; // 引入请求工具
+import { fetchUnsplash } from '../api/unsplash';
 import Toast from '../components/Toast';
 
-const { width, height } = Dimensions.get('window');
-
 export default function DetailScreen({ route, navigation }) {
-  const { photo: initialPhoto } = route.params; // 重命名为初始数据
-  const [photo, setPhoto] = useState(initialPhoto); // 用 state 存储数据，方便更新
-  
+  // 安全获取参数
+  const initialPhoto = route.params?.photo;
+
+  // 🔥 核心修复：如果 initialPhoto 是空的，或者是坏数据，显示 Loading 界面
+  // 这样永远不会触发 regular of undefined
+  if (!initialPhoto || !initialPhoto.urls) {
+    return (
+      <View style={[styles.container, { justifyContent:'center', alignItems:'center' }]}>
+        <ActivityIndicator size="large" color="#fff" />
+        <Text style={{color:'#fff', marginTop:10}}>Loading Image Error...</Text>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={{marginTop:20, padding:10, backgroundColor:'#333', borderRadius:10}}>
+            <Text style={{color:'#fff'}}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  const [photo, setPhoto] = useState(initialPhoto);
   const { startDownload } = useDownloads();
   const [isFav, setIsFav] = useState(false);
-  
-  // Toast 状态
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
   const [toastType, setToastType] = useState('success');
 
   useEffect(() => {
     checkFavStatus();
-    loadFullStats(); // 加载完整数据(包含浏览量)
+    loadFullStats();
   }, []);
 
   const loadFullStats = async () => {
     const apiKey = await getApiKey();
-    // 请求单张图片详情
-    const data = await fetchUnsplash(`/photos/${initialPhoto.id}`, {}, apiKey);
-    if (data && !data.errors) {
-      setPhoto(data); // 更新 UI 显示完整数据
+    if (photo.id) {
+        const data = await fetchUnsplash(`/photos/${photo.id}`, {}, apiKey);
+        if (data && !data.errors) setPhoto(data);
     }
   };
 
@@ -55,8 +65,10 @@ export default function DetailScreen({ route, navigation }) {
   };
 
   const handleCopyLink = async () => {
-    await Clipboard.setStringAsync(photo.links.html);
-    showToast("Link Copied!");
+    if (photo.links?.html) {
+        await Clipboard.setStringAsync(photo.links.html);
+        showToast("Link Copied!");
+    }
   };
 
   const showToast = (msg, type = 'success') => {
@@ -68,9 +80,10 @@ export default function DetailScreen({ route, navigation }) {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
-      <Image source={{ uri: photo.urls.regular }} style={styles.fullImage} />
+      
+      {/* 🔥 核心修复：再次使用 ?. 确保万无一失 */}
+      <Image source={{ uri: photo.urls?.regular }} style={styles.fullImage} />
 
-      {/* 顶部按钮 */}
       <SafeAreaView style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
@@ -80,15 +93,14 @@ export default function DetailScreen({ route, navigation }) {
         </TouchableOpacity>
       </SafeAreaView>
 
-      {/* 底部信息 */}
       <LinearGradient colors={['transparent', '#000']} style={styles.bottomOverlay}>
         <View style={styles.content}>
             <Text style={styles.title} numberOfLines={2}>{photo.description || photo.alt_description || "Untitled"}</Text>
             
             <View style={styles.metaRow}>
                 <View style={styles.userSection}>
-                    <Image source={{ uri: photo.user.profile_image.medium }} style={styles.avatar} />
-                    <Text style={styles.username}>{photo.user.name}</Text>
+                    <Image source={{ uri: photo.user?.profile_image?.medium }} style={styles.avatar} />
+                    <Text style={styles.username}>{photo.user?.name || 'User'}</Text>
                 </View>
                 <TouchableOpacity onPress={handleCopyLink} style={styles.copyBtn}>
                     <Ionicons name="link" size={16} color="#fff" />
@@ -97,7 +109,6 @@ export default function DetailScreen({ route, navigation }) {
             </View>
 
             <View style={styles.statsGrid}>
-                {/* 这里的 views 现在会自动更新显示了 */}
                 <StatItem icon="eye" value={photo.views} label="Views" />
                 <StatItem icon="heart" value={photo.likes} label="Likes" />
                 <StatItem icon="scan" value={`${photo.width}x${photo.height}`} label="Res" />
@@ -132,22 +143,18 @@ const styles = StyleSheet.create({
   fullImage: { ...StyleSheet.absoluteFillObject, resizeMode: 'cover' },
   header: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 10, position: 'absolute', top: 0, width: '100%', zIndex: 10 },
   iconBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
-  
   bottomOverlay: { position: 'absolute', bottom: 0, width: '100%', paddingBottom: 40, paddingTop: 120 },
   content: { paddingHorizontal: 24 },
   title: { color: '#fff', fontFamily: 'Poppins_600SemiBold', fontSize: 20, marginBottom: 20, textShadowColor:'rgba(0,0,0,0.5)', textShadowRadius:10 },
-  
   metaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
   userSection: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   avatar: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: '#fff' },
   username: { color: '#fff', fontFamily: 'Poppins_600SemiBold', fontSize: 14 },
   copyBtn: { flexDirection:'row', alignItems:'center', gap:6, backgroundColor:'rgba(255,255,255,0.2)', paddingHorizontal:12, paddingVertical:6, borderRadius:20 },
-
   statsGrid: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 16, padding: 16, marginBottom: 24 },
   statItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   statValue: { color: '#fff', fontSize: 12, fontFamily: 'Poppins_600SemiBold' },
   statLabel: { color: '#94a3b8', fontSize: 10, fontFamily: 'Poppins_400Regular' },
-
   downloadBtn: { backgroundColor: '#fff', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: 18, borderRadius: 18, gap: 12 },
   downloadText: { color: '#000', fontFamily: 'Poppins_700Bold', fontSize: 16 },
   license: { textAlign: 'center', color: '#64748b', fontSize: 10, marginTop: 16 }

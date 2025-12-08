@@ -12,7 +12,7 @@ jobs:
       - name: 📦 Check out Git repository
         uses: actions/checkout@v4
 
-      # 🔥 核心：增加 Swap 空间，防止 OOM 爆内存
+      # 🔥 核心：增加 Swap 空间，防止 OOM 爆内存 (保留你的优化)
       - name: 💾 Increase Swap Space
         run: |
           sudo swapoff -a
@@ -22,6 +22,7 @@ jobs:
           sudo swapon /swapfile
           sudo swapon --show
 
+      # 读取 app.config.js 里的版本号 (记得本地要把 version 改成 1.1.5)
       - name: 📖 Get Version
         id: get_version
         run: |
@@ -42,7 +43,7 @@ jobs:
       - name: 📦 Install dependencies
         run: npm install
 
-      # 建议加上 --clear-cache 确保 Gradle 配置生效
+      # 使用 --clear-cache 确保干净构建
       - name: 🚀 Build APK (Local)
         run: eas build --platform android --profile preview --non-interactive --local --clear-cache --output=./forme.apk
 
@@ -50,8 +51,27 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           tag: "v${{ steps.get_version.outputs.APP_VERSION }}"
-          name: "v${{ steps.get_version.outputs.APP_VERSION }} Release"
-          body: "GitHub Actions 自动构建版本，包含 expo-updates 支持。"
+          name: "v${{ steps.get_version.outputs.APP_VERSION }} - Super App Upgrade"
+          body: |
+            ## 🚀 v1.1.5 里程碑更新
+
+            ### 🌟 核心功能升级
+            - **DeepGlow Studio 集成**: 新增 WebGL 图像处理工具，支持辉光、色温调节，并可保存至相册。
+            - **全新架构**: 采用 Bottom Tab + Stack 混合导航，操作更流畅。
+            - **自定义首页**: 支持更换首页壁纸，集成天气与每日语录组件。
+
+            ### 🎨 UI/UX 交互焕新
+            - **悬浮 Tab 栏**: 全新设计的椭圆悬浮底部导航，带有平滑的背景跟随动画。
+            - **列表优化**: VibeWall 列表采用动态高度瀑布流，并增加横/竖屏角标提示。
+            - **沉浸式体验**: 优化全屏浏览和下载页面的视觉反馈。
+
+            ### 📥 下载中心 2.0
+            - **智能管理**: 支持任务排队、去重、失败重试。
+            - **数据可视化**: 显示具体的下载进度 (MB) 和状态。
+            - **权限修复**: 完美适配 Android 13+ 媒体权限。
+
+            ---
+            *Built with ❤️ by GitHub Actions*
           artifacts: "./forme.apk"
           token: ${{ secrets.GITHUB_TOKEN }}
           allowUpdates: true
