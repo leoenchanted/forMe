@@ -23,7 +23,7 @@ export default ({config}) => {
     ...config,
     name: IS_DEV ? "forme (Dev)" : "forMe", // 开发版名字不一样
     slug: "forMe",
-    version: "1.1.5",
+    version: "1.1.6",
     orientation: "portrait",
     icon: "./assets/icon.png",
     userInterfaceStyle: "light",
@@ -52,6 +52,12 @@ export default ({config}) => {
       "favicon": "./assets/favicon.png"
     },
     plugins: [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow forme to access your photos to edit them."
+        }
+      ],
       [
         "expo-media-library",
         {
