@@ -75,7 +75,7 @@ jobs:
 
       # 使用 --clear-cache 确保干净构建
       - name: 🚀 Build APK (Local)
-        run: eas build --platform android --profile preview --non-interactive --local --clear-cache --output=./forme.apk
+        run: eas build --platform android --profile preview --non-interactive --local --clear-cache --output=./formev${{ steps.get_version.outputs.APP_VERSION }}.apk
 
       # 🧹 构建后立即释放所有缓存（包括 swap 文件！）
       - name: 🧹 Post-build cleanup
@@ -96,12 +96,26 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           tag: "v${{ steps.get_version.outputs.APP_VERSION }}"
-          name: "v${{ steps.get_version.outputs.APP_VERSION }} - Super App Upgradev1.1.6"
+          name: "v${{ steps.get_version.outputs.APP_VERSION }} - Super App Upgradev1.1.7"
           body: |
-            ## 🚀 v1.1.6 图标修复 deepglow修复打开照片？
+            ## 🚀 v1.1.7 重大更新
+
+            ### 🛠️ 全新工具箱 (Tools Tab)
+            - **新增工具页面**: 底部导航栏新增 Tools 入口，未来将集成更多实用工具。
+            - **通用工具引擎**: 引入 `UniversalTool` 架构，支持轻量级 Web 工具即插即用。
+            - **新增工具**: HSL 调色板 (HSL Color Mixer)，支持实时预览与复制。
+
+            ### ⚡ 交互与能力升级
+            - **触觉反馈**: 引入 `expo-haptics`，为工具和操作提供细腻的震动反馈。
+            - **剪切板支持**: 工具内支持一键复制内容。
+            - **更新机制修复**: 修复了应用内更新无法下载的问题，改用浏览器高速下载通道 (ghproxy)。
+
+            ### 🐛 优化与修复
+            - 修复了图标在部分机型显示异常的问题 (Adaptive Icon)。
+            - 优化了底层依赖结构。
 
             ---
             *Built with ❤️ by GitHub Actions*
-          artifacts: "./forme.apk"
+          artifacts: "./formev${{ steps.get_version.outputs.APP_VERSION }}.apk"
           token: ${{ secrets.GITHUB_TOKEN }}
           allowUpdates: true

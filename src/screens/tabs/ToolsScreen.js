@@ -1,32 +1,44 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-
-const TOOLS = [
-  { id: 'deepglow', name: 'DeepGlow Studio', icon: 'color-wand', desc: 'Add glow & effects to photos', route: 'DeepGlow' },
-  // 这里以后可以加更多工具
-];
+import { ALL_TOOLS } from '../../tools/registry';
 
 export default function ToolsScreen({ navigation }) {
+  
+  const handlePress = (tool) => {
+    if (tool.type === 'native') {
+      // 如果是复杂原生工具，直接跳转路由
+      navigation.navigate(tool.routeName);
+    } else {
+      // 如果是通用网页工具，跳转万能容器，并把参数传过去
+      navigation.navigate('UniversalTool', {
+        toolTitle: tool.title,
+        sourceHtml: tool.sourceHtml,
+        sourceUrl: tool.sourceUrl,
+      });
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <Text style={styles.header}>Tools</Text>
       <FlatList
-        data={TOOLS}
+        data={ALL_TOOLS}
         keyExtractor={item => item.id}
         contentContainerStyle={{ padding: 20 }}
         renderItem={({ item }) => (
           <TouchableOpacity 
             style={styles.item}
-            onPress={() => navigation.navigate(item.route)}
+            onPress={() => handlePress(item)}
+            activeOpacity={0.7}
           >
-            <View style={[styles.iconBox, { backgroundColor: '#8b5cf6' }]}>
+            <View style={[styles.iconBox, { backgroundColor: item.color }]}>
               <Ionicons name={item.icon} size={24} color="#fff" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.title}>{item.name}</Text>
-              <Text style={styles.desc}>{item.desc}</Text>
+              <Text style={styles.title}>{item.title}</Text>
+              <Text style={styles.desc} numberOfLines={1}>{item.description}</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#cbd5e1" />
           </TouchableOpacity>

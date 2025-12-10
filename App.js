@@ -21,6 +21,8 @@ import DetailScreen from './src/screens/DetailScreen';
 import FavoritesScreen from './src/screens/FavoritesScreen';
 import DownloadScreen from './src/screens/DownloadScreen';
 
+import UniversalToolScreen from './src/tools/UniversalToolScreen';
+
 import CustomTabBar from './src/components/CustomTabBar';
 import Toast from './src/components/Toast';
 
@@ -54,6 +56,7 @@ function AppContent() {
           <Stack.Screen name="Favorites" component={FavoritesScreen} />
           <Stack.Screen name="Downloads" component={DownloadScreen} />
           <Stack.Screen name="DeepGlow" component={DeepGlowScreen} />
+          <Stack.Screen name="UniversalTool" component={UniversalToolScreen} options={{ headerShown: false }} />
         </Stack.Navigator>
       </NavigationContainer>
       
