@@ -46,7 +46,7 @@ export default function HomeScreen() {
   const changeBg = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaType.Images,
+        mediaTypes: "images",
         allowsEditing: true, // 允许裁剪
         aspect: [9, 16],     // 限制比例，防止图片过大
         quality: 0.7,        // 压缩质量 (0-1)，0.7 可以有效防止内存溢出闪退！

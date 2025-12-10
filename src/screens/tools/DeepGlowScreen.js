@@ -27,7 +27,7 @@ export default function DeepGlowScreen({ navigation }) {
 
       // B. 打开相册
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaType.Images, // 确保用的是新版写法
+        mediaTypes: "images", // 确保用的是新版写法
         base64: true, 
         quality: 0.8,
       });
