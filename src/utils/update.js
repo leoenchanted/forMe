@@ -4,7 +4,7 @@ import * as Application from 'expo-application';
 // ⚠️ 配置
 const GITHUB_USER = "leoenchanted"; 
 const GITHUB_REPO = "forMe"; 
-const DOWNLOAD_PROXY = 'https://gh.llkk.cc/'; // 国内加速
+const DOWNLOAD_PROXY = 'https://ghfast.top/'; // 国内加速
 
 // 获取最新 Release 数据
 const getLatestRelease = async () => {

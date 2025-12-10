@@ -84,6 +84,7 @@ export default function SettingsScreen() {
                     <Text style={styles.btnText}>Check for Updates</Text>
                 )}
             </TouchableOpacity>
+            <Text style={styles.proxyText}>🚀文件加速由 https://ghfast.top 提供</Text>
         </View>
 
         <Text style={styles.footerText}>forMe App © 2025</Text>
@@ -107,6 +108,6 @@ const styles = StyleSheet.create({
 
   btn: { backgroundColor: '#0f172a', paddingVertical: 16, borderRadius: 12, alignItems: 'center' },
   btnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-
+  proxyText:{textAlign: 'center',color:'#cbd5e1',fontWeight: 'bold', fontSize: 10,marginTop:8},
   footerText: { textAlign: 'center', color: '#cbd5e1', fontSize: 12, marginTop: 20 }
 });
