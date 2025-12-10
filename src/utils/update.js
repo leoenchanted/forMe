@@ -1,110 +1,74 @@
+import { Platform } from 'react-native';
 import * as Application from 'expo-application';
-import * as FileSystem from 'expo-file-system';
-import * as IntentLauncher from 'expo-intent-launcher';
-import { Alert, Platform } from 'react-native';
 
-// ⚠️ 把这里换成你的 GitHub 用户名和仓库名
+// ⚠️ 配置
 const GITHUB_USER = "leoenchanted"; 
 const GITHUB_REPO = "forMe"; 
+const DOWNLOAD_PROXY = 'https://gh.llkk.cc/'; // 国内加速
 
-// 获取最新版本信息
+// 获取最新 Release 数据
 const getLatestRelease = async () => {
   try {
-    const response = await fetch(`https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/releases/latest`);
-    const data = await response.json();
-    return data;
+    // 增加一个随机数防止缓存
+    const response = await fetch(`https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/releases/latest?t=${Date.now()}`);
+    if (response.status !== 200) return null;
+    return await response.json();
   } catch (error) {
     console.error("Check update failed:", error);
     return null;
   }
 };
 
-// 比较版本号 (v1.1.1 vs 1.1.0)
+// 版本号比较 (v1.1.5 > 1.1.0)
 const isNewer = (latestVer, currentVer) => {
-  // 去掉 v 前缀
-  const cleanLatest = latestVer.replace('v', '');
-  // 简单的字符串比较，或者拆分成数字比较
-  return cleanLatest !== currentVer; 
-  // 注意：这里用简单的“不相等”做演示。
-  // 严谨的做法是用 semver 库比较，但只要你保证版本号一直是增加的，这样也行。
+  if (!latestVer || !currentVer) return false;
+  const v1 = latestVer.replace(/^v/, '').split('.').map(Number);
+  const v2 = currentVer.replace(/^v/, '').split('.').map(Number);
+  
+  for (let i = 0; i < Math.max(v1.length, v2.length); i++) {
+    const num1 = v1[i] || 0;
+    const num2 = v2[i] || 0;
+    if (num1 > num2) return true;
+    if (num1 < num2) return false;
+  }
+  return false;
 };
 
-export const checkAndUpdate = async () => {
+/**
+ * 检查更新的核心函数
+ * 返回对象: { hasUpdate: boolean, latestVersion: string, releaseNotes: string, downloadUrl: string, error: string }
+ */
+export const checkVersion = async () => {
   if (Platform.OS !== 'android') {
-    Alert.alert("提示", "iOS暂不支持应用内更新");
-    return;
+    return { error: "iOS 暂不支持检查更新" };
   }
 
-  // 1. 获取当前版本
-  const currentVersion = Application.nativeApplicationVersion; // 例如 "1.1.1"
-  
-  Alert.alert("检查更新", "正在连接 GitHub...");
-
-  // 2. 获取远程版本
+  const currentVersion = Application.nativeApplicationVersion; 
   const release = await getLatestRelease();
-  
+
   if (!release || !release.tag_name) {
-    Alert.alert("错误", "无法获取更新信息");
-    return;
+    return { error: "无法连接到更新服务器" };
   }
 
-  const latestVersion = release.tag_name; // 例如 "v1.2.0"
+  const latestVersion = release.tag_name;
+  const hasUpdate = isNewer(latestVersion, currentVersion);
 
-  // 3. 对比
-  if (isNewer(latestVersion, currentVersion)) {
-    // 发现新版本
-    Alert.alert(
-      "发现新版本 " + latestVersion,
-      `当前版本: ${currentVersion}\n\n更新内容:\n${release.body}`,
-      [
-        { text: "取消", style: "cancel" },
-        { 
-          text: "立即更新", 
-          onPress: () => downloadAndInstall(release.assets[0].browser_download_url) 
-        }
-      ]
-    );
-  } else {
-    Alert.alert("已是最新", `当前版本 ${currentVersion} 已经是最新版。`);
-  }
-};
-
-// 下载并安装
-const downloadAndInstall = async (url) => {
-  try {
-    // 设置下载路径
-    const fileUri = FileSystem.documentDirectory + 'update.apk';
-    
-    // 下载回调 (简单显示进度，这里用 Alert 不太好，实际可以用 Toast)
-    // Alert.alert("下载中", "请稍候，正在后台下载...");
-
-    const downloadRes = await FileSystem.downloadAsync(url, fileUri);
-
-    // 下载完成，开始安装
-    if (downloadRes.status === 200) {
-      installAPK(downloadRes.uri);
-    } else {
-      Alert.alert("错误", "下载失败");
+  // 寻找 APK 链接
+  let downloadUrl = null;
+  if (release.assets && release.assets.length > 0) {
+    const asset = release.assets.find(a => a.name.endsWith('.apk'));
+    if (asset) {
+      // 🔥 拼接加速链接
+      downloadUrl = DOWNLOAD_PROXY + asset.browser_download_url;
     }
-  } catch (e) {
-    console.error(e);
-    Alert.alert("错误", "更新流程出错");
   }
-};
 
-// 唤起安卓安装器
-const installAPK = async (uri) => {
-  try {
-    // 需要把 file:// 转换成 content:// 才能给安装器用
-    const contentUri = await FileSystem.getContentUriAsync(uri);
-    
-    await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
-      data: contentUri,
-      flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
-      type: 'application/vnd.android.package-archive',
-    });
-  } catch (e) {
-    console.error(e);
-    Alert.alert("安装失败", "无法唤起安装器");
-  }
+  return {
+    hasUpdate,
+    currentVersion,
+    latestVersion,
+    releaseNotes: release.body,
+    downloadUrl,
+    error: null
+  };
 };
