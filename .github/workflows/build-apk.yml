@@ -102,6 +102,6 @@ jobs:
 
             ---
             *Built with ❤️ by GitHub Actions*
-          artifacts: "./forme-v-1.1.6.apk"
+          artifacts: "./forme.apk"
           token: ${{ secrets.GITHUB_TOKEN }}
           allowUpdates: true
