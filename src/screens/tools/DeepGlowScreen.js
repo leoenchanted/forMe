@@ -64,31 +64,38 @@ export default function DeepGlowScreen({ navigation }) {
     }
   };
 
-  const saveToGallery = async (base64Data) => {
-    try {
-      // 这里的权限请求通常在 app.config.js 配置好 plugins 后，配合 saveToLibraryAsync 会自动处理
-      // 但为了保险，可以保留这个检查
-      const { status } = await MediaLibrary.requestPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert("Permission denied");
-        return;
-      }
-
-      const fileName = FileSystem.documentDirectory + `deepglow_${Date.now()}.jpg`;
-      const base64Code = base64Data.split('data:image/jpeg;base64,')[1];
-      
-      await FileSystem.writeAsStringAsync(fileName, base64Code, {
-        encoding: 'base64',
-      });
-
-      await MediaLibrary.saveToLibraryAsync(fileName);
-      Alert.alert("✅ Saved!", "Image saved to gallery.");
-    } catch (e) {
-      Alert.alert("Error", "Failed to save image: " + e.message);
-    } finally {
-      setLoading(false);
+const saveToGallery = async (base64Data) => {
+  try {
+    const { status } = await MediaLibrary.requestPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert("Permission denied");
+      return;
     }
-  };
+
+    // 提取 base64 部分（移除 data URL 前缀）
+    const base64Code = base64Data.replace(/^data:image\/\w+;base64,/, '');
+    if (!base64Code) {
+      throw new Error('Invalid image data');
+    }
+
+    // ✅ 使用 FileSystem.File 和 FileSystem.Paths（新 API，但通过原命名空间访问）
+    const fileName = `deepglow_${Date.now()}.jpg`;
+    const file = new FileSystem.File(FileSystem.Paths.document, fileName);
+
+    // 写入 base64 字符串（自动识别为 base64）
+    await file.write(base64Code);
+
+    // 保存到相册
+    await MediaLibrary.saveToLibraryAsync(file.uri);
+
+    Alert.alert("✅ Saved!", "Image saved to gallery.");
+  } catch (e) {
+    console.error("Save error:", e);
+    Alert.alert("Error", "Failed to save image: " + (e.message || String(e)));
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <View style={styles.container}>
