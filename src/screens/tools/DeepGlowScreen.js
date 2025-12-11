@@ -78,7 +78,7 @@ export default function DeepGlowScreen({ navigation }) {
       const base64Code = base64Data.split('data:image/jpeg;base64,')[1];
       
       await FileSystem.writeAsStringAsync(fileName, base64Code, {
-        encoding: FileSystem.EncodingType.Base64,
+        encoding: 'base64',
       });
 
       await MediaLibrary.saveToLibraryAsync(fileName);
