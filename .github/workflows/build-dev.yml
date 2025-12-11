@@ -1,8 +1,6 @@
 name: Build Dev Client (Debug APK)
-
 on:
   workflow_dispatch: # 手动触发
-
 jobs:
   build:
     name: 🏗 Build Dev Client
@@ -10,27 +8,23 @@ jobs:
     steps:
       - name: 📦 Check out Git repository
         uses: actions/checkout@v4
-
+        with:
+          ref: testttt # 新增：固定使用 testttt 分支（调试包专用）
       - name: ⚙️ Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 18.x
           cache: npm
-
       - name: ⚙️ Setup EAS
         uses: expo/expo-github-action@v8
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
-
       - name: 📦 Install dependencies
         run: npm install
-
       - name: 🚀 Build Dev Client
-        # 核心修改：--profile development (打调试包)
-        # --local (利用 GitHub 算力，不排 Expo 的队)
+        # 核心：调试包配置，仅基于 testttt 分支
         run: eas build --platform android --profile development --non-interactive --local --output=./forme-dev.apk
-
       - name: 📤 Upload Artifact
         uses: actions/upload-artifact@v4
         with:
