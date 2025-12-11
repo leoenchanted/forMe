@@ -72,21 +72,30 @@ const saveToGallery = async (base64Data) => {
       return;
     }
 
-    // 提取 base64 部分（移除 data URL 前缀）
     const base64Code = base64Data.replace(/^data:image\/\w+;base64,/, '');
     if (!base64Code) {
-      throw new Error('Invalid image data');
+      throw new Error('Base64 data is empty');
     }
 
-    // ✅ 使用 FileSystem.File 和 FileSystem.Paths（新 API，但通过原命名空间访问）
     const fileName = `deepglow_${Date.now()}.jpg`;
     const file = new FileSystem.File(FileSystem.Paths.document, fileName);
 
-    // 写入 base64 字符串（自动识别为 base64）
+    // 👇 写入并等待完成
     await file.write(base64Code);
+    
+    // 🔎 调试：检查文件是否存在、大小
+    const fileInfo = await FileSystem.getInfoAsync(file.uri);
+    console.log('Saved file info:', fileInfo);
+    if (!fileInfo.exists || fileInfo.size === 0) {
+      throw new Error('File not created or empty');
+    }
 
-    // 保存到相册
-    await MediaLibrary.saveToLibraryAsync(file.uri);
+    // ✅ 确保 URI 是 file:// 开头
+    console.log('Saving URI to gallery:', file.uri);
+
+    // 👇 保存到相册
+    const assetId = await MediaLibrary.saveToLibraryAsync(file.uri);
+    console.log('MediaLibrary asset ID:', assetId); // 如果返回 null 或 undefined，说明失败
 
     Alert.alert("✅ Saved!", "Image saved to gallery.");
   } catch (e) {
