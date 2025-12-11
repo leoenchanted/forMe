@@ -35,7 +35,8 @@ export default function DeepGlowScreen({ navigation }) {
       console.log("选图结果:", result.canceled ? "取消" : "成功");
 
       if (!result.canceled && result.assets[0].base64) {
-        const base64Img = `data:image/jpeg;base64,${result.assets[0].base64}`;
+        const mimeType = result.assets[0].mimeType || 'image/jpeg';
+        const base64Img = `data:${mimeType};base64,${result.assets[0].base64}`;
         // 发送给 WebView
         const script = `loadImage('${base64Img}'); true;`;
         webViewRef.current.injectJavaScript(script);
