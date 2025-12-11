@@ -106,6 +106,14 @@ export const DeepGlowHTML = `
             <div class="control-label"><span>Saturation</span><span id="saturationVal">0.0</span></div>
             <input type="range" id="saturation" min="-100" max="100" value="0" step="1">
         </div>
+        <div class="control-group">
+            <div class="control-label"><span>Highs</span><span id="highlightsVal">0.0</span></div>
+            <input type="range" id="highlights" min="-100" max="100" value="0" step="1">
+        </div>
+        <div class="control-group">
+            <div class="control-label"><span>Shadows</span><span id="shadowsVal">0.0</span></div>
+            <input type="range" id="shadows" min="-100" max="100" value="0" step="1">
+        </div>
     </div>
 
 <script>
@@ -451,12 +459,12 @@ export const DeepGlowHTML = `
         gl.uniform1f(gl.getUniformLocation(p, "u_saturation"), getVal('saturation')/100);
         gl.uniform1f(gl.getUniformLocation(p, "u_temp"), getVal('temperature')/50);
         // highs/shadows 暂时不用，或者你可以在 html 添加对应滑块
-        gl.uniform1f(gl.getUniformLocation(p, "u_highs"), 0.0);
-        gl.uniform1f(gl.getUniformLocation(p, "u_shadows"), 0.0);
+        gl.uniform1f(gl.getUniformLocation(p, "u_highs"), getVal('highlights') / 100);
+        gl.uniform1f(gl.getUniformLocation(p, "u_shadows"), getVal('shadows') / 100);
         gl.uniform1f(gl.getUniformLocation(p, "u_bloomThresh"), getVal('bloomThreshold')/100);
     }
 
-    const inputs = ['bloomStrength','bloomThreshold','bloomRadius','grain','vignette','aberration','temperature','exposure','contrast','saturation'];
+    const inputs = ['bloomStrength','bloomThreshold','bloomRadius','grain','vignette','aberration','temperature','exposure','contrast','saturation','highlights','shadows'];
     inputs.forEach(id => {
         const el = document.getElementById(id);
         const disp = document.getElementById(id + 'Val');
@@ -465,6 +473,8 @@ export const DeepGlowHTML = `
                 let val = e.target.value;
                 if(id === 'bloomThreshold') val = (val/100).toFixed(2);
                 if(id === 'bloomStrength') val = (val/100).toFixed(1);
+                else if(['exposure','contrast','saturation','highlights','shadows'].includes(id)) val = (val / 100).toFixed(1);
+                else val = val;
                 disp.textContent = val;
             }
             requestAnimationFrame(render);
