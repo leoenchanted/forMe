@@ -22,15 +22,12 @@ export default function CustomTabBar({ state, descriptors, navigation }) {
     Animated.spring(translateX, {
       toValue: state.index * tabWidth,
       useNativeDriver: true,
-      bounciness: 4,
-      speed: 12,
     }).start();
   }, [state.index]);
 
   return (
     <View style={styles.container}>
       <View style={styles.tabBar}>
-        
         {/* 固定天蓝色滑块 */}
         <Animated.View
           style={[
@@ -63,8 +60,8 @@ export default function CustomTabBar({ state, descriptors, navigation }) {
             >
               <Ionicons 
                 name={iconName} 
-                size={24} 
-                color={isFocused ? '#fff' : '#94a3b8'} 
+                size={18} 
+                color={isFocused ? '#fff' : '#000'} 
               />
             </TouchableOpacity>
           );
@@ -75,8 +72,43 @@ export default function CustomTabBar({ state, descriptors, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { position: 'absolute', bottom: 45, left: MARGIN, right: MARGIN, alignItems: 'center' },
-  tabBar: { flexDirection: 'row', width: '100%', height: 70, borderRadius: 35, backgroundColor: '#ffffff', shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 5, alignItems: 'center', justifyContent: 'space-between' },
-  slider: { position: 'absolute', height: 54, top: 8, left: 5, borderRadius: 27, zIndex: 0, backgroundColor: 'maroon' }, // 👈 固定天蓝色
-  tabItem: { flex: 1, height: '100%', justifyContent: 'center', alignItems: 'center', zIndex: 1 },
+  container: { 
+    position: 'absolute', 
+    bottom: 35, 
+    left: MARGIN, 
+    right: MARGIN, 
+    alignItems: 'center' 
+  },
+  tabBar: { 
+    flexDirection: 'row', 
+    width: '100%', 
+    height: 50, 
+    borderRadius: 35, 
+    backgroundColor: 'rgba(255, 255, 255, 0.65)', // 半透明白色
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.3)', // 轻微白边
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 5,
+    alignItems: 'center', 
+    justifyContent: 'space-between'
+  },
+  slider: { 
+    position: 'absolute', 
+    height: 36, 
+    top: 8, 
+    left: 5, 
+    borderRadius: 27, 
+    zIndex: 0, 
+    backgroundColor: 'maroon' 
+  },
+  tabItem: { 
+    flex: 1, 
+    height: '100%', 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    zIndex: 1 
+  },
 });

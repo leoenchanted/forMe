@@ -6,6 +6,7 @@ import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system';
 import { Ionicons } from '@expo/vector-icons';
 import { DeepGlowHTML } from '../../../assets/deepglow.html.js';
+import { Image } from 'react-native';
 
 export default function DeepGlowScreen({ navigation }) {
   const webViewRef = useRef(null);
@@ -31,10 +32,23 @@ export default function DeepGlowScreen({ navigation }) {
         base64: true, 
         quality: 0.8,
       });
-
+      
       console.log("选图结果:", result.canceled ? "取消" : "成功");
 
       if (!result.canceled && result.assets[0].base64) {
+              // 获取图片宽高
+      const { width, height } = result.assets[0]
+      const totalPixels = width * height;
+      const MAX_PIXELS = 20_000_000; // 设置最大像素数为2000万
+      console.log(totalPixels)
+      if (totalPixels > MAX_PIXELS) {
+        Alert.alert(
+          "图片太大了！",
+          `请选择不超过 ${MAX_PIXELS / 1e6} 百万像素的图片。\n当前：${width} × ${height} = ${totalPixels.toLocaleString()} 像素`,
+          [{ text: "知道了", style: "cancel" }]
+        );
+        return; // 如果图片像素数过多，则不继续执行
+      }
         const mimeType = result.assets[0].mimeType || 'image/jpeg';
         const base64Img = `data:${mimeType};base64,${result.assets[0].base64}`;
         // 发送给 WebView
