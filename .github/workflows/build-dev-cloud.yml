@@ -1,0 +1,36 @@
+name: Build Dev Client (Expo Cloud)
+
+on:
+  workflow_dispatch: # 手动触发
+
+jobs:
+  build:
+    name: ☁️ Trigger Expo Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📦 Check out Git repository
+        uses: actions/checkout@v4
+        with:
+          ref: testttt # 新增：固定使用 testttt 分支（调试包专用）
+
+      - name: ⚙️ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18.x
+          cache: npm
+
+      - name: ⚙️ Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: 📦 Install dependencies
+        run: npm install
+
+      # 👇👇👇 核心修改 👇👇👇
+      # 1. 去掉了 --local (不让 GitHub 打)
+      # 2. 加上了 --no-wait (不傻等，提交完任务就结束)
+      # 3. 去掉了 --output 和 Upload Artifact (因为文件不在 GitHub 这边)
+      - name: 🚀 Trigger Cloud Build
+        run: eas build --platform android --profile development --non-interactive --no-wait
