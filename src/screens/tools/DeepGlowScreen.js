@@ -4,66 +4,67 @@ import { WebView } from 'react-native-webview';
 import * as ImagePicker from 'expo-image-picker';
 import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system';
+import * as ImageManipulator from 'expo-image-manipulator'; // 引入缩放库
 import { Ionicons } from '@expo/vector-icons';
 import { DeepGlowHTML } from '../../../assets/deepglow.html.js';
-import { Image } from 'react-native';
 
 export default function DeepGlowScreen({ navigation }) {
   const webViewRef = useRef(null);
   const [loading, setLoading] = useState(false);
 
-  // 1. 选择图片 (增强版)
+  // 1. 处理图片尺寸，防止 WebGL 黑屏
+  const processImage = async (uri) => {
+    const MAX_SIZE = 4096; // 大多数手机 WebGL 的安全上限
+    const info = await ImageManipulator.manipulateAsync(uri, []);
+    
+    let actions = [];
+    if (info.width > MAX_SIZE || info.height > MAX_SIZE) {
+      // 等比例缩放
+      const isWidthLarger = info.width > info.height;
+      actions.push({
+        resize: isWidthLarger ? { width: MAX_SIZE } : { height: MAX_SIZE }
+      });
+    }
+
+    // 转换为 base64
+    const result = await ImageManipulator.manipulateAsync(
+      uri,
+      actions,
+      { format: ImageManipulator.SaveFormat.JPEG, base64: true, compress: 0.9 }
+    );
+    return `data:image/jpeg;base64,${result.base64}`;
+  };
+
   const pickImage = async () => {
     try {
-      console.log("正在尝试打开相册...");
-      
-      // A. 显式请求权限 (防止系统静默拒绝)
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      console.log("相册权限状态:", status);
-      
       if (status !== 'granted') {
-        Alert.alert("需要权限", "请去设置里允许应用访问相册，否则无法选图。");
+        Alert.alert("需要权限", "请允许访问相册以选择图片。");
         return;
       }
 
-      // B. 打开相册
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: "images", // 确保用的是新版写法
-        base64: true, 
-        quality: 0.8,
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: false, // 建议不在这里编辑，交给 WebGL 处理
+        quality: 1,
       });
-      
-      console.log("选图结果:", result.canceled ? "取消" : "成功");
 
-      if (!result.canceled && result.assets[0].base64) {
-              // 获取图片宽高
-      const { width, height } = result.assets[0]
-      const totalPixels = width * height;
-      const MAX_PIXELS = 20_000_000; // 设置最大像素数为2000万
-      console.log(totalPixels)
-      if (totalPixels > MAX_PIXELS) {
-        Alert.alert(
-          "图片太大了！",
-          `请选择不超过 ${MAX_PIXELS / 1e6} 百万像素的图片。\n当前：${width} × ${height} = ${totalPixels.toLocaleString()} 像素`,
-          [{ text: "知道了", style: "cancel" }]
-        );
-        return; // 如果图片像素数过多，则不继续执行
-      }
-        const mimeType = result.assets[0].mimeType || 'image/jpeg';
-        const base64Img = `data:${mimeType};base64,${result.assets[0].base64}`;
-        // 发送给 WebView
+      if (!result.canceled) {
+        setLoading(true);
+        const base64Img = await processImage(result.assets[0].uri);
         const script = `loadImage('${base64Img}'); true;`;
         webViewRef.current.injectJavaScript(script);
+        setLoading(false);
       }
     } catch (e) {
-      // C. 捕捉错误并弹窗
-      console.error("选图报错:", e);
+      setLoading(false);
       Alert.alert("错误", "打开相册失败: " + e.message);
     }
   };
 
   const triggerSave = () => {
     setLoading(true);
+    // 向 WebView 发送保存指令
     webViewRef.current.postMessage(JSON.stringify({ type: 'saveImage' }));
   };
 
@@ -79,47 +80,37 @@ export default function DeepGlowScreen({ navigation }) {
     }
   };
 
-const saveToGallery = async (base64Data) => {
-  try {
-    const { status } = await MediaLibrary.requestPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert("Permission denied");
-      return;
+  const saveToGallery = async (base64Data) => {
+    try {
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert("错误", "没有相册保存权限");
+        return;
+      }
+
+      // 1. 纯净的 Base64 数据
+      const base64Code = base64Data.replace(/^data:image\/\w+;base64,/, '');
+      
+      // 2. 生成临时文件名
+      const filename = `${FileSystem.cacheDirectory}deepglow_${Date.now()}.jpg`;
+
+      // 3. 使用标准 FileSystem API 写入文件
+      await FileSystem.writeAsStringAsync(filename, base64Code, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      // 4. 保存到相册并创建相册资产
+      const asset = await MediaLibrary.createAssetAsync(filename);
+      // 也可以选择移动到特定相册：await MediaLibrary.createAlbumAsync('DeepGlow', asset, false);
+
+      Alert.alert("✅ 保存成功", "图片已存入系统相册");
+    } catch (e) {
+      console.error("Save error:", e);
+      Alert.alert("保存失败", e.message);
+    } finally {
+      setLoading(false);
     }
-
-    const base64Code = base64Data.replace(/^data:image\/\w+;base64,/, '');
-    if (!base64Code) {
-      throw new Error('Base64 data is empty');
-    }
-
-    const fileName = `deepglow_${Date.now()}.jpg`;
-    const file = new FileSystem.File(FileSystem.Paths.document, fileName);
-
-    // 👇 写入并等待完成
-    await file.write(base64Code);
-    
-    // 🔎 调试：检查文件是否存在、大小
-    const fileInfo = await FileSystem.getInfoAsync(file.uri);
-    console.log('Saved file info:', fileInfo);
-    if (!fileInfo.exists || fileInfo.size === 0) {
-      throw new Error('File not created or empty');
-    }
-
-    // ✅ 确保 URI 是 file:// 开头
-    console.log('Saving URI to gallery:', file.uri);
-
-    // 👇 保存到相册
-    const assetId = await MediaLibrary.saveToLibraryAsync(file.uri);
-    console.log('MediaLibrary asset ID:', assetId); // 如果返回 null 或 undefined，说明失败
-
-    Alert.alert("✅ Saved!", "Image saved to gallery.");
-  } catch (e) {
-    console.error("Save error:", e);
-    Alert.alert("Error", "Failed to save image: " + (e.message || String(e)));
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   return (
     <View style={styles.container}>
@@ -131,8 +122,9 @@ const saveToGallery = async (base64Data) => {
         onMessage={handleMessage}
         javaScriptEnabled={true}
         domStorageEnabled={true}
-        // 关键：防止 Android WebView 崩溃或无法加载本地内容
         mixedContentMode="always"
+        // 增加此属性确保大图加载更稳定
+        allowFileAccess={true}
       />
 
       <View style={styles.toolbar}>
@@ -142,10 +134,10 @@ const saveToGallery = async (base64Data) => {
         
         <TouchableOpacity onPress={pickImage} style={[styles.btn, styles.mainBtn]}>
           <Ionicons name="image" size={20} color="#000" />
-          <Text style={styles.btnText}>Open Photo</Text>
+          <Text style={styles.btnText}>{loading ? '处理中...' : '选择图片'}</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={triggerSave} style={[styles.btn, styles.saveBtn]}>
+        <TouchableOpacity onPress={triggerSave} style={[styles.btn, styles.saveBtn]} disabled={loading}>
           {loading ? <ActivityIndicator color="#fff"/> : <Ionicons name="download" size={24} color="#fff" />}
         </TouchableOpacity>
       </View>
