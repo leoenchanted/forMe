@@ -3,7 +3,7 @@ import { View, StyleSheet, TouchableOpacity, Text, ActivityIndicator, Alert } fr
 import { WebView } from 'react-native-webview';
 import * as ImagePicker from 'expo-image-picker';
 import * as MediaLibrary from 'expo-media-library';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy'; 
 import * as ImageManipulator from 'expo-image-manipulator'; // 引入缩放库
 import { Ionicons } from '@expo/vector-icons';
 import { DeepGlowHTML } from '../../../assets/deepglow.html.js';
@@ -96,7 +96,7 @@ export default function DeepGlowScreen({ navigation }) {
 
       // 3. 使用标准 FileSystem API 写入文件
       await FileSystem.writeAsStringAsync(filename, base64Code, {
-        encoding: FileSystem.EncodingType.Base64,
+        encoding: 'base64', 
       });
 
       // 4. 保存到相册并创建相册资产

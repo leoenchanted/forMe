@@ -59,6 +59,9 @@ jobs:
         run: npm install
       # 构建正式APK
       - name: 🚀 Build APK (Local)
+        env:
+          # 格式：环境变量名: ${{ secrets.GitHub后台设置的Secret名 }}
+          UNSPLASH_ACCESS_KEY: ${{ secrets.UNSPLASH_ACCESS_KEY }}
         run: eas build --platform android --profile preview --non-interactive --local --clear-cache --output=./formev${{ steps.get_version.outputs.APP_VERSION }}.apk
       # 🧹 构建后清理
       - name: 🧹 Post-build cleanup
@@ -77,18 +80,10 @@ jobs:
           tag: "v${{ steps.get_version.outputs.APP_VERSION }}"
           name: "v${{ steps.get_version.outputs.APP_VERSION }} - Super App Upgradev1.1.7"
           body: |
-            ## 🚀 v1.1.7 重大更新
-            ### 🛠️ 全新工具箱 (Tools Tab)
-            - **新增工具页面**: 底部导航栏新增 Tools 入口，未来将集成更多实用工具。
-            - **通用工具引擎**: 引入 `UniversalTool` 架构，支持轻量级 Web 工具即插即用。
-            - **新增工具**: HSL 调色板 (HSL Color Mixer)，支持实时预览与复制。
-            ### ⚡ 交互与能力升级
-            - **触觉反馈**: 引入 `expo-haptics`，为工具和操作提供细腻的震动反馈。
-            - **剪切板支持**: 工具内支持一键复制内容。
-            - **更新机制修复**: 修复了应用内更新无法下载的问题，改用浏览器高速下载通道 (ghproxy)。
-            ### 🐛 优化与修复
-            - 修复了图标在部分机型显示异常的问题 (Adaptive Icon)。
-            - 优化了底层依赖结构。
+            ## 🚀 v1.1.8 重大更新
+            ### 🛠️ 支持不输入api搜索照片拉
+            ### 🐛 优化与deepglow页面
+
             ---
             *Built with ❤️ by GitHub Actions*
           artifacts: "./formev${{ steps.get_version.outputs.APP_VERSION }}.apk"
