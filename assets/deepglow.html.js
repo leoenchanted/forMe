@@ -156,13 +156,25 @@ export const DeepGlowHTML = `
             color = mix(vec3(gray), color, u_saturation + 1.0);
             color.r += u_temp * 0.1;
             color.b -= u_temp * 0.1;
+                        // ✅ 新增：高光与阴影调节逻辑
+            // 计算当前像素亮度
+            float luminance = dot(color, vec3(0.299, 0.587, 0.114));
+            
+            // 阴影遮罩：亮度越低，遮罩越白 (0.5以下开始生效)
+            float shadowMask = 1.0 - smoothstep(0.0, 0.5, luminance);
+            // 高光遮罩：亮度越高，遮罩越白 (0.5以上开始生效)
+            float highlightMask = smoothstep(0.5, 1.0, luminance);
+
+            // 应用调节 (u_shadows/u_highs 范围是 -1.0 到 1.0)
+            color += color * u_shadows * shadowMask * 0.5; // 0.5 是为了防止调节过猛
+            color += color * u_highs * highlightMask * 0.5;
             return clamp(color, 0.0, 1.0);
         }
 
         void main() {
             vec4 texColor = texture2D(u_image, v_texCoord);
             vec3 color = adjustColor(texColor.rgb);
-            gl_FragColor = vec4(color, 1.0);
+            gl_FragColor = vec4(color, 1.0);    
         }
     \`;
 
@@ -308,10 +320,20 @@ export const DeepGlowHTML = `
         requestAnimationFrame(() => {
             render();
             // 获取 Base64 发回给 App
+    // 稍微延迟确保缓冲区就绪
+    setTimeout(() => {
+        try {
             const dataURL = canvas.toDataURL('image/jpeg', 0.95);
             if (window.ReactNativeWebView) {
-                window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'saveResult', payload: dataURL }));
+                window.ReactNativeWebView.postMessage(JSON.stringify({ 
+                    type: 'saveResult', 
+                    payload: dataURL 
+                }));
             }
+        } catch (e) {
+            console.error("Canvas toDataURL failed", e);
+        }
+    }, 100); 
         });
     }
 
