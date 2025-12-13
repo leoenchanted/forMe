@@ -33,6 +33,36 @@ export const storeApiKey = async (key) => {
 };
 
 // ... 收藏夹的代码保持不变 ...
-export const getFavorites = async () => { /*...*/ };
-export const toggleFavorite = async (photo) => { /*...*/ };
-export const checkIsFavorite = async (photoId) => { /*...*/ };
+export const getFavorites = async () => {
+  try {
+    const jsonValue = await AsyncStorage.getItem(KEY_FAVS);
+    return jsonValue != null ? JSON.parse(jsonValue) : [];
+  } catch(e) { return []; }
+};
+
+export const toggleFavorite = async (photo) => {
+  try {
+    const currentFavs = await getFavorites();
+    const existingIndex = currentFavs.findIndex(item => item.id === photo.id);
+    
+    let newFavs;
+    let isFav;
+
+    if (existingIndex >= 0) {
+      // 已存在，删除
+      newFavs = currentFavs.filter(item => item.id !== photo.id);
+      isFav = false;
+    } else {
+      // 不存在，添加
+      newFavs = [photo, ...currentFavs];
+      isFav = true;
+    }
+    await AsyncStorage.setItem(KEY_FAVS, JSON.stringify(newFavs));
+    return { newFavs, isFav };
+  } catch (e) { console.error(e); return { newFavs: [], isFav: false }; }
+};
+
+export const checkIsFavorite = async (photoId) => {
+  const currentFavs = await getFavorites();
+  return currentFavs.some(item => item.id === photoId);
+};
