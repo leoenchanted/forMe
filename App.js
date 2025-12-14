@@ -1,17 +1,18 @@
 import React from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+// 导入字体
 import { useFonts, Poppins_400Regular, Poppins_600SemiBold, Poppins_700Bold } from '@expo-google-fonts/poppins';
 
 // 引入 Context
 import { DownloadProvider } from './src/context/DownloadContext';
-import { useDownloads } from './src/context/DownloadContext';
+import { ToastProvider } from './src/context/ToastContext';
 
-// Screens
+// Screens (省略导入细节，假设路径正确)
 import HomeScreen from './src/screens/tabs/HomeScreen';
 import VibeWallScreen from './src/screens/tabs/VibeWallScreen';
 import ToolsScreen from './src/screens/tabs/ToolsScreen';
@@ -20,11 +21,8 @@ import DeepGlowScreen from './src/screens/tools/DeepGlowScreen';
 import DetailScreen from './src/screens/DetailScreen';
 import FavoritesScreen from './src/screens/FavoritesScreen';
 import DownloadScreen from './src/screens/DownloadScreen';
-
 import UniversalToolScreen from './src/tools/UniversalToolScreen';
-
 import CustomTabBar from './src/components/CustomTabBar';
-import Toast from './src/components/Toast';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -43,10 +41,8 @@ function MainTabs() {
   );
 }
 
-// 封装 App 内容以显示 Toast
+// 应用程序主体内容
 function AppContent() {
-  const { notification, hideGlobalToast } = useDownloads(); 
-
   return (
     <View style={{ flex: 1, backgroundColor: '#f8fafc' }}>
       <NavigationContainer>
@@ -59,13 +55,6 @@ function AppContent() {
           <Stack.Screen name="UniversalTool" component={UniversalToolScreen} options={{ headerShown: false }} />
         </Stack.Navigator>
       </NavigationContainer>
-      
-      <Toast 
-        visible={notification.visible} 
-        message={notification.msg} 
-        type={notification.type} 
-        onHide={hideGlobalToast} 
-      />
     </View>
   );
 }
@@ -75,13 +64,32 @@ export default function App() {
     Poppins_400Regular, Poppins_600SemiBold, Poppins_700Bold,
   });
 
-  if (!fontsLoaded) return <ActivityIndicator />;
+  if (!fontsLoaded) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#007AFF" />
+      </View>
+    );
+  }
 
+  // 字体加载成功后，才开始渲染包含字体的组件
   return (
     <SafeAreaProvider>
-      <DownloadProvider>
+      {/* 核心改动：Provider 必须在这里包裹 AppContent */}
+      <ToastProvider> 
+        <DownloadProvider>
           <AppContent />
-      </DownloadProvider>
+        </DownloadProvider>
+      </ToastProvider>
     </SafeAreaProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff', 
+  },
+});

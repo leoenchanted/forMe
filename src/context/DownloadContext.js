@@ -1,16 +1,21 @@
 import React, { createContext, useState, useContext, useRef, useEffect } from 'react';
-import * as FileSystem from 'expo-file-system/legacy'; 
+import * as FileSystem from 'expo-file-system/legacy'; // 注意：Expo SDK 50+ 建议使用 expo-file-system，legacy 可能在未来被移除，目前保持原样
 import * as MediaLibrary from 'expo-media-library';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
+// 引入你新写的 Toast Hook
+import { useToast } from './ToastContext'; 
+
 const DownloadContext = createContext();
-const STORAGE_KEY = 'vibewall_downloads_v4'; // 再次升级Key，清洗旧数据
+const STORAGE_KEY = 'vibewall_downloads_v4';
 
 export const DownloadProvider = ({ children }) => {
   const [downloads, setDownloads] = useState([]);
-  const [notification, setNotification] = useState({ visible: false, msg: '', type: 'info' });
   const downloadResumables = useRef({});
+  
+  // 1. 获取 Toast 方法
+  const { showToast } = useToast();
 
   useEffect(() => {
     const loadHistory = async () => {
@@ -18,7 +23,6 @@ export const DownloadProvider = ({ children }) => {
         const json = await AsyncStorage.getItem(STORAGE_KEY);
         if (json) {
           let history = JSON.parse(json);
-          // 重启后所有下载中变为暂停
           history = history.map(item => 
             item.status === 'downloading' ? { ...item, status: 'paused' } : item
           );
@@ -36,14 +40,17 @@ export const DownloadProvider = ({ children }) => {
     saveHistory();
   }, [downloads]);
 
-  const showGlobalToast = (msg, type = 'info') => setNotification({ visible: true, msg, type });
-  const hideGlobalToast = () => setNotification(prev => ({ ...prev, visible: false }));
+  // 原来的 showGlobalToast 和 hideGlobalToast 已删除
 
   const startDownload = async (photo) => {
     const existing = downloads.find(t => t.id === photo.id);
     if (existing && existing.status !== 'success' && existing.status !== 'error') {
-       if (existing.status === 'paused') resumeDownload(photo.id);
-       else showGlobalToast("Already in queue", 'info');
+       if (existing.status === 'paused') {
+           resumeDownload(photo.id);
+       } else {
+           // 2. 使用新的 Toast
+           showToast("Already in queue", 'info');
+       }
        return;
     }
 
@@ -57,10 +64,13 @@ export const DownloadProvider = ({ children }) => {
       total: '0.0',
       status: 'downloading',
       fileName: `vibewall_${photo.id}.jpg`,
-      resumeSnapshot: null // 改名：存储暂停时的快照字符串
+      resumeSnapshot: null 
     };
 
     setDownloads(prev => [task, ...prev.filter(t => t.id !== photo.id)]);
+    
+    // 可选：开始下载时给个提示
+    showToast("Download started", "success"); 
     executeDownload(task);
   };
 
@@ -69,12 +79,12 @@ export const DownloadProvider = ({ children }) => {
       const { status } = await MediaLibrary.requestPermissionsAsync(true);
       if (status !== 'granted') {
         updateTask(task.id, { status: 'error', errorMsg: 'Permission Denied' });
+        showToast("Permission Denied", "error"); // 建议：权限被拒时弹出提示
         return;
       }
 
       const fileUri = FileSystem.documentDirectory + task.fileName;
 
-      // 🔥 核心修复点：resumeDataString 必须是字符串
       const downloadResumable = FileSystem.createDownloadResumable(
         task.url,
         fileUri,
@@ -87,7 +97,7 @@ export const DownloadProvider = ({ children }) => {
            const tMB = (totalBytes / 1024 / 1024).toFixed(1);
            updateTask(task.id, { progress: p, written: wMB, total: tMB });
         },
-        resumeDataString // 👈 传入字符串，不要传对象！
+        resumeDataString 
       );
 
       downloadResumables.current[task.id] = downloadResumable;
@@ -101,6 +111,8 @@ export const DownloadProvider = ({ children }) => {
         await MediaLibrary.saveToLibraryAsync(result.uri);
         updateTask(task.id, { status: 'success' });
         await FileSystem.deleteAsync(result.uri, { idempotent: true });
+        // 可选：下载成功提示
+        showToast("Saved to Gallery", "success"); 
       }
 
     } catch (e) {
@@ -108,25 +120,21 @@ export const DownloadProvider = ({ children }) => {
       delete downloadResumables.current[task.id];
       if (e.message && e.message.includes('aborted')) return;
       
-      // 如果恢复失败，尝试降级重试（不带 resumeData）
       if (resumeDataString) {
           console.log("Resume failed, restarting...");
           return executeDownload(task, null);
       }
       updateTask(task.id, { status: 'error', errorMsg: 'Failed' });
+      // 可选：失败提示
+      showToast("Download Failed", "error");
     }
   };
 
-  // ⏸️ 暂停
   const pauseDownload = async (id) => {
     const resumable = downloadResumables.current[id];
     if (resumable) {
       try {
         const pauseResult = await resumable.pauseAsync();
-        // 🔥 关键：pauseResult 是一个对象 { url, fileUri, options, resumeData }
-        // Android 需要里面的 resumeData 字符串
-        // iOS 可能直接用整个对象序列化
-        // 我们存整个对象的 JSON 字符串，恢复时再解析提取
         updateTask(id, { status: 'paused', resumeSnapshot: JSON.stringify(pauseResult) });
       } catch (e) { console.error(e); }
     } else {
@@ -134,7 +142,6 @@ export const DownloadProvider = ({ children }) => {
     }
   };
 
-  // ▶️ 恢复
   const resumeDownload = async (id) => {
     const task = downloads.find(t => t.id === id);
     if (!task) return;
@@ -146,17 +153,12 @@ export const DownloadProvider = ({ children }) => {
     if (task.resumeSnapshot) {
         try {
             const snapshotObj = JSON.parse(task.resumeSnapshot);
-            // 🔥 核心逻辑：提取 String
-            // Android: snapshotObj.resumeData 是我们要的字符串
-            // iOS: 有时候需要整个结构，但在 Expo SDK 50+ 中通常也只需要 resumeData
             if (Platform.OS === 'android') {
-                resumeString = snapshotObj.resumeData; // 👈 Android 要这个 String
+                resumeString = snapshotObj.resumeData; 
             } else {
-                // iOS 尝试直接传 resumeData，如果不行则传整个对象的序列化
                 resumeString = snapshotObj.resumeData || task.resumeSnapshot;
             }
             
-            // 双重保险：如果 resumeData 字段不存在，说明可能存错了，直接重下
             if (!resumeString) {
                 console.log("No valid resume string found, restarting");
                 resumeString = null; 
@@ -181,7 +183,9 @@ export const DownloadProvider = ({ children }) => {
         try { await FileSystem.deleteAsync(fileUri, { idempotent: true }); } catch(e){}
     }
     setDownloads(prev => prev.filter(t => t.id !== id));
-    showGlobalToast("Task Deleted", 'info');
+    
+    // 3. 使用新的 Toast
+    showToast("Task Deleted", 'info');
   };
 
   const updateTask = (id, updates) => {
@@ -189,9 +193,9 @@ export const DownloadProvider = ({ children }) => {
   };
 
   return (
+    // 4. Value 变得更干净，不再包含 notification 和 hideGlobalToast
     <DownloadContext.Provider value={{ 
-      downloads, startDownload, pauseDownload, resumeDownload, deleteTask, 
-      notification, hideGlobalToast 
+      downloads, startDownload, pauseDownload, resumeDownload, deleteTask 
     }}>
       {children}
     </DownloadContext.Provider>
