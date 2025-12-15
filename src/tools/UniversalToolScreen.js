@@ -5,12 +5,11 @@ import { WebView } from 'react-native-webview';
 import ViewShot from 'react-native-view-shot';
 import * as MediaLibrary from 'expo-media-library';
 import * as Haptics from 'expo-haptics';
-import Clipboard from '@react-native-clipboard/clipboard';
 
 export default function UniversalToolScreen({ route }) {
   const { tool } = route.params;
   const viewShotRef = useRef(null);
-  const webViewRef = useRef(null); // 👈 新增 ref
+  const webViewRef = useRef(null);
 
   const handleMessage = async (event) => {
     try {
@@ -21,53 +20,54 @@ export default function UniversalToolScreen({ route }) {
           Haptics.impactAsync(style);
           break;
 
-        case 'copy':
-          await Clipboard.setString(data.payload);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.success);
-          break;
+        case 'requestScreenshot': {
+          const { action } = data.payload || {};
 
-        case 'prepareCapture': // 👈 处理 prepareCapture
-          // 1. 注入 JS 隐藏 UI
+          // 隐藏 UI（如果 HTML 实现了 setCaptureMode）
           webViewRef.current?.injectJavaScript(`
-            setCaptureMode(true);
+            typeof setCaptureMode === 'function' && setCaptureMode(true);
             true;
           `);
 
-          // 2. 延迟截图
           setTimeout(async () => {
+            let uri = null;
             try {
-              const { status } = await MediaLibrary.requestPermissionsAsync();
-              if (status !== 'granted') {
-                Alert.alert('权限被拒绝', '请在设置中允许访问相册以保存图片。');
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.warning);
-                // 恢复 UI
-                webViewRef.current?.injectJavaScript(`setCaptureMode(false); true;`);
-                return;
-              }
-
               if (viewShotRef.current) {
-                const uri = await viewShotRef.current.capture();
+                uri = await viewShotRef.current.capture();
+              }
+            } catch (err) {
+              console.error('Capture failed:', err);
+            }
 
-                // 3. 立即恢复 UI
-                webViewRef.current?.injectJavaScript(`setCaptureMode(false); true;`);
+            // 恢复 UI
+            webViewRef.current?.injectJavaScript(`
+              typeof setCaptureMode === 'function' && setCaptureMode(false);
+              true;
+            `);
 
-                if (uri) {
+            // 如果指定了 action，则执行（目前仅支持 saveToAlbum）
+            if (uri && action === 'saveToAlbum') {
+              try {
+                const { status } = await MediaLibrary.requestPermissionsAsync();
+                if (status === 'granted') {
                   await MediaLibrary.createAssetAsync(uri);
                   Alert.alert('✅ 保存成功', '图片已保存到您的相册！');
                   Haptics.notificationAsync(Haptics.NotificationFeedbackType.success);
                 } else {
-                  throw new Error('Capture returned empty URI');
+                  Alert.alert('权限被拒绝', '请在设置中允许访问相册。');
+                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.warning);
                 }
+              } catch (e) {
+                console.error('Save to album error:', e);
+                Alert.alert('❌ 保存失败', '请稍后重试。');
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.error);
               }
-            } catch (err) {
-              console.error('Capture error:', err);
-              Alert.alert('❌ 保存失败', '请稍后重试。');
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.error);
-              // 确保 UI 恢复
-              webViewRef.current?.injectJavaScript(`setCaptureMode(false); true;`);
             }
+
+            // 未来可扩展：通过 callback 回传 uri 给 JS
           }, 100);
           break;
+        }
 
         default:
           console.log('Unhandled message:', data);
@@ -85,7 +85,7 @@ export default function UniversalToolScreen({ route }) {
         style={styles.viewShot}
       >
         <WebView
-          ref={webViewRef} // 👈 绑定 ref
+          ref={webViewRef}
           source={{ html: tool.sourceHtml }}
           onMessage={handleMessage}
           style={styles.webview}
