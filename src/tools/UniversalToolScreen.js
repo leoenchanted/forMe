@@ -1,91 +1,116 @@
-import React, { useRef, useState } from 'react';
-import { View, StyleSheet, ActivityIndicator, Alert, Share } from 'react-native';
+// src/screens/UniversalToolScreen.js
+import React, { useRef } from 'react';
+import { View, Alert, StyleSheet } from 'react-native';
 import { WebView } from 'react-native-webview';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import * as Clipboard from 'expo-clipboard';
+import ViewShot from 'react-native-view-shot';
+import * as MediaLibrary from 'expo-media-library';
 import * as Haptics from 'expo-haptics';
+import Clipboard from '@react-native-clipboard/clipboard';
 
-export default function UniversalToolScreen({ route, navigation }) {
-  // 1. 接收参数：网页标题、HTML代码、或者在线URL
-  const { toolTitle, sourceHtml, sourceUrl } = route.params; 
-  const webViewRef = useRef(null);
-  const [loading, setLoading] = useState(true);
+export default function UniversalToolScreen({ route }) {
+  const { tool } = route.params;
+  const viewShotRef = useRef(null);
+  const webViewRef = useRef(null); // 👈 新增 ref
 
-  // 2. 处理来自 WebView 网页的消息 (Bridge)
   const handleMessage = async (event) => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
-      console.log(`[Tool] Action:`, data.type);
-
       switch (data.type) {
-        // 震动反馈 (轻/中/重)
         case 'haptic':
-          const style = data.style === 'heavy' ? Haptics.ImpactFeedbackStyle.Heavy : 
-                        data.style === 'medium' ? Haptics.ImpactFeedbackStyle.Medium : 
-                        Haptics.ImpactFeedbackStyle.Light;
-          await Haptics.impactAsync(style);
+          const style = Haptics.ImpactFeedbackStyle[data.payload?.style] || Haptics.ImpactFeedbackStyle.medium;
+          Haptics.impactAsync(style);
           break;
 
-        // 复制文字到剪贴板
         case 'copy':
-          await Clipboard.setStringAsync(data.payload);
-          // 可以选择弹个 Toast，或者让网页自己处理反馈
+          await Clipboard.setString(data.payload);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.success);
           break;
 
-        // 关闭页面
-        case 'close':
-          navigation.goBack();
+        case 'prepareCapture': // 👈 处理 prepareCapture
+          // 1. 注入 JS 隐藏 UI
+          webViewRef.current?.injectJavaScript(`
+            setCaptureMode(true);
+            true;
+          `);
+
+          // 2. 延迟截图
+          setTimeout(async () => {
+            try {
+              const { status } = await MediaLibrary.requestPermissionsAsync();
+              if (status !== 'granted') {
+                Alert.alert('权限被拒绝', '请在设置中允许访问相册以保存图片。');
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.warning);
+                // 恢复 UI
+                webViewRef.current?.injectJavaScript(`setCaptureMode(false); true;`);
+                return;
+              }
+
+              if (viewShotRef.current) {
+                const uri = await viewShotRef.current.capture();
+
+                // 3. 立即恢复 UI
+                webViewRef.current?.injectJavaScript(`setCaptureMode(false); true;`);
+
+                if (uri) {
+                  await MediaLibrary.createAssetAsync(uri);
+                  Alert.alert('✅ 保存成功', '图片已保存到您的相册！');
+                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.success);
+                } else {
+                  throw new Error('Capture returned empty URI');
+                }
+              }
+            } catch (err) {
+              console.error('Capture error:', err);
+              Alert.alert('❌ 保存失败', '请稍后重试。');
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.error);
+              // 确保 UI 恢复
+              webViewRef.current?.injectJavaScript(`setCaptureMode(false); true;`);
+            }
+          }, 100);
           break;
-          
-        // 分享文本
-        case 'share':
-          await Share.share({ message: data.payload });
-          break;
+
+        default:
+          console.log('Unhandled message:', data);
       }
     } catch (e) {
-      console.error("Message Error:", e);
+      console.warn('Invalid message format:', e);
     }
   };
 
-  // 3. 构造 Webview 内容源
-  const source = sourceUrl ? { uri: sourceUrl } : { html: sourceHtml };
-
   return (
     <View style={styles.container}>
-      {/* 顶部简单的导航栏 */}
-      <SafeAreaView edges={['top']} style={styles.header}>
-        <Ionicons name="close" size={24} color="#fff" onPress={() => navigation.goBack()} />
-        <View style={styles.titleContainer}>
-            {/* 这里显示工具标题 */}
-        </View>
-        <View style={{width: 24}} /> 
-      </SafeAreaView>
-
-      <WebView
-        ref={webViewRef}
-        originWhitelist={['*']}
-        source={source}
-        style={{ flex: 1, backgroundColor: '#000' }} // 默认黑底
-        onMessage={handleMessage}
-        javaScriptEnabled={true}
-        domStorageEnabled={true}
-        mixedContentMode="always"
-        onLoadEnd={() => setLoading(false)}
-      />
-      
-      {loading && (
-        <View style={styles.loader}>
-          <ActivityIndicator size="large" color="#8b5cf6" />
-        </View>
-      )}
+      <ViewShot
+        ref={viewShotRef}
+        options={{ format: 'png', quality: 1 }}
+        style={styles.viewShot}
+      >
+        <WebView
+          ref={webViewRef} // 👈 绑定 ref
+          source={{ html: tool.sourceHtml }}
+          onMessage={handleMessage}
+          style={styles.webview}
+          originWhitelist={['*']}
+          scalesPageToFit={false}
+          scrollEnabled={false}
+          bounces={false}
+          showsVerticalScrollIndicator={false}
+          showsHorizontalScrollIndicator={false}
+        />
+      </ViewShot>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#111' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 10, backgroundColor: '#111' },
-  titleContainer: { flex: 1, alignItems: 'center' },
-  loader: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center', backgroundColor: '#000', zIndex: 99 }
+  container: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  viewShot: {
+    flex: 1,
+  },
+  webview: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
 });
