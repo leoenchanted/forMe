@@ -1,5 +1,6 @@
 import { DeepGlowHTML } from '../../assets/deepglow.html.js';
 import { HslConverterHTML } from './html/hsl_converter.html.js';
+import { DraggableMeshGradientHTML } from './html/draggable_mesh_gradient.html.js'; // 👈 新增导入
 
 // 标准工具配置格式：
 // id: 唯一标识
@@ -30,6 +31,15 @@ export const ALL_TOOLS = [
     color: '#f59e0b',
     type: 'webview', // 这是一个网页小工具
     sourceHtml: HslConverterHTML, 
+  },
+  {
+    id: 'mesh_gradient',
+    title: 'Draggable Mesh Gradient',
+    description: '可拖拽的动态网格渐变生成器，支持保存为壁纸。',
+    icon: 'grid',
+    color: '#ec4899',
+    type: 'webview',
+    sourceHtml: DraggableMeshGradientHTML,
   },
   // 以后在这里加新工具...
 ];
