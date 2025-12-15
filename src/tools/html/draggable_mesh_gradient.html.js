@@ -301,22 +301,19 @@ export const DraggableMeshGradientHTML = `
             sendToApp('haptic', { style: 'medium' });
         });
 
-        // ✨ 关键：改为 prepareCapture
+        // ✅ 关键修改：使用 requestScreenshot + action
         document.getElementById('btn-save').addEventListener('click', function() {
-            sendToApp('prepareCapture'); // 👈 触发准备截图流程
+            sendToApp('requestScreenshot', { action: 'saveToAlbum' });
             sendToApp('haptic', { style: 'heavy' });
         });
 
-        // 👇 新增：用于截图时隐藏 UI
+        // 👇 安全调用：使用可选链，避免其他工具报错
         function setCaptureMode(enable) {
             const panel = document.querySelector('.controls-panel');
             const points = document.querySelectorAll('.control-point');
-            if (enable) {
-                panel.style.display = 'none';
-                points.forEach(p => p.style.display = 'none');
-            } else {
-                panel.style.display = 'flex';
-                points.forEach(p => p.style.display = 'block';
+            if (panel && points) {
+                panel.style.display = enable ? 'none' : 'flex';
+                points.forEach(p => p.style.display = enable ? 'none' : 'block');
             }
         }
 
