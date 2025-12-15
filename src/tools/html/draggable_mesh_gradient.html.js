@@ -25,7 +25,6 @@ export const DraggableMeshGradientHTML = `
             z-index: 1;
         }
 
-        /* --- 交互层 --- */
         #interaction-layer {
             position: absolute;
             top: 0;
@@ -204,7 +203,6 @@ export const DraggableMeshGradientHTML = `
     </script>
 
     <script>
-        // 🔥 新增：与 React Native 通信的桥接函数
         function sendToApp(type, payload = null) {
             if (window.ReactNativeWebView) {
                 const msg = typeof payload === 'object' ? { type, ...payload } : { type, payload };
@@ -286,7 +284,7 @@ export const DraggableMeshGradientHTML = `
             picker.addEventListener('input', (e) => {
                 state.colors[i] = hexToRgb(e.target.value);
                 updateUniforms();
-                sendToApp('haptic', { style: 'light' }); // 调色震动反馈
+                sendToApp('haptic', { style: 'light' });
             });
         });
 
@@ -303,26 +301,24 @@ export const DraggableMeshGradientHTML = `
             sendToApp('haptic', { style: 'medium' });
         });
 
-        // ✨ 替换原生保存逻辑：改为调用 App 分享
+        // ✨ 关键：改为 prepareCapture
         document.getElementById('btn-save').addEventListener('click', function() {
-            // 确保画面最新
-            gl.uniform1f(uTime, (Date.now() - startTime) / 1000);
-            gl.drawArrays(gl.TRIANGLES, 0, 6);
-
-            // 获取 Data URL（兼容性更好）
-            try {
-                const dataUrl = canvas.toDataURL('image/png');
-                if (dataUrl && dataUrl.length > 1000) {
-                    sendToApp('share', dataUrl); // 👈 关键：交给原生处理分享/保存
-                    sendToApp('haptic', { style: 'heavy' });
-                } else {
-                    throw new Error('Canvas empty');
-                }
-            } catch (e) {
-                sendToApp('haptic', { style: 'heavy' });
-                alert('保存失败，请尝试截图');
-            }
+            sendToApp('prepareCapture'); // 👈 触发准备截图流程
+            sendToApp('haptic', { style: 'heavy' });
         });
+
+        // 👇 新增：用于截图时隐藏 UI
+        function setCaptureMode(enable) {
+            const panel = document.querySelector('.controls-panel');
+            const points = document.querySelectorAll('.control-point');
+            if (enable) {
+                panel.style.display = 'none';
+                points.forEach(p => p.style.display = 'none');
+            } else {
+                panel.style.display = 'flex';
+                points.forEach(p => p.style.display = 'block';
+            }
+        }
 
         let activeIdx = -1;
         function handleStart(i, cx, cy) { activeIdx = i; }
@@ -340,7 +336,7 @@ export const DraggableMeshGradientHTML = `
             el.addEventListener('touchstart', e => {
                 e.preventDefault();
                 handleStart(i, e.touches[0].clientX, e.touches[0].clientY);
-                sendToApp('haptic', { style: 'light' }); // 拖拽开始震动
+                sendToApp('haptic', { style: 'light' });
             }, {passive: false});
             el.addEventListener('mousedown', e => {
                 handleStart(i, e.clientX, e.clientY);
