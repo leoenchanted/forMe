@@ -4,15 +4,28 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 
 import { useDownloads } from '../context/DownloadContext';
 import { toggleFavorite, checkIsFavorite, getApiKey } from '../utils/storage';
 import { fetchUnsplash } from '../api/unsplash';
 import Toast from '../components/Toast';
 
-export default function DetailScreen({ route, navigation }) {
-  // 安全获取参数
-  const initialPhoto = route.params?.photo;
+export default function DetailScreen() {
+  const router = useRouter();
+  const params = useLocalSearchParams();
+  
+  // 安全获取参数 - 注意：useLocalSearchParams返回的是字符串，需要转换
+  let initialPhoto = null;
+  try {
+    if (params.photo) {
+      // Expo Router已经自动解码了URL参数，所以不需要再次调用decodeURIComponent()
+      initialPhoto = JSON.parse(params.photo);
+    }
+  } catch (error) {
+    console.error('Error parsing photo params:', error);
+    initialPhoto = null;
+  }
 
   // 🔥 核心修复：如果 initialPhoto 是空的，或者是坏数据，显示 Loading 界面
   // 这样永远不会触发 regular of undefined
@@ -21,7 +34,7 @@ export default function DetailScreen({ route, navigation }) {
       <View style={[styles.container, { justifyContent:'center', alignItems:'center' }]}>
         <ActivityIndicator size="large" color="#fff" />
         <Text style={{color:'#fff', marginTop:10}}>Loading Image Error...</Text>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{marginTop:20, padding:10, backgroundColor:'#333', borderRadius:10}}>
+        <TouchableOpacity onPress={() => router.back()} style={{marginTop:20, padding:10, backgroundColor:'#333', borderRadius:10}}>
             <Text style={{color:'#fff'}}>Go Back</Text>
         </TouchableOpacity>
       </View>
@@ -85,7 +98,7 @@ export default function DetailScreen({ route, navigation }) {
       <Image source={{ uri: photo.urls?.regular }} style={styles.fullImage} />
 
       <SafeAreaView style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <TouchableOpacity onPress={handleFav} style={styles.iconBtn}>

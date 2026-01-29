@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { fetchUnsplash } from '../../api/unsplash'; 
 import { getApiKey, storeApiKey } from '../../utils/storage';
 import DailyCard from '../../components/DailyCard';
@@ -10,7 +11,8 @@ import ImageGrid from '../../components/ImageGrid';
 import SettingsModal from '../../components/SettingsModal';
 import CustomMenu from '../../components/CustomMenu';
 
-export default function VibeWallScreen({ navigation }) {
+export default function VibeWallScreen() {
+  const router = useRouter();
   const [apiKey, setApiKey] = useState('');
   const [showSettings, setShowSettings] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
@@ -103,7 +105,7 @@ export default function VibeWallScreen({ navigation }) {
       refreshDaily(k); // 保存后立即刷新
   };
   
-  const openDetail = (photo) => navigation.navigate('Detail', { photo });
+  const openDetail = (photo) => router.push(`/vibewall/detail/${encodeURIComponent(JSON.stringify(photo))}`);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -184,8 +186,8 @@ export default function VibeWallScreen({ navigation }) {
       <CustomMenu 
         visible={showMenu} 
         onClose={() => setShowMenu(false)} 
-        onNavigateFav={() => navigation.navigate('Favorites')}
-        onNavigateDownloads={() => navigation.navigate('Downloads')}
+        onNavigateFav={() => router.push('/settings/favorites')}
+        onNavigateDownloads={() => router.push('/settings/downloads')}
         onNavigateSettings={() => setShowSettings(true)} 
       />
       

@@ -33,6 +33,7 @@ export default ({config}) => {
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+    scheme: "exp+forme",
     assetBundlePatterns: [
       "**/*"
     ],
@@ -81,6 +82,7 @@ export default ({config}) => {
     // 👆👆👆 新增结束 👆👆👆
     extra: {
       unsplashApiKey:process.env.UNSPLASH_ACCESS_KEY,
+      qweatherApiKey:process.env.QWEATHER_API_KEY,
       eas: {
         projectId: "e3327d5b-e82a-4111-950f-affc5497935c" // ⚠️ 如果你之前删了这一行，这里不填也没事，EAS会自动识别
       }
