@@ -6,14 +6,14 @@ const { width } = Dimensions.get('window');
 const MARGIN = 20;
 const TAB_BAR_WIDTH = width - 2 * MARGIN;
 
-export default function CustomTabBar({ state, descriptors, navigation }) {
+export default function CustomTabBar({ state, navigation }) {
   const translateX = useRef(new Animated.Value(0)).current;
 
   const config = [
-    { name: 'Home', icon: 'home' },
-    { name: 'VibeWall', icon: 'images' },
-    { name: 'Tools', icon: 'grid' },
-    { name: 'Settings', icon: 'settings' },
+    { name: 'index', icon: 'home' },
+    { name: 'vibewall', icon: 'images' },
+    { name: 'tools', icon: 'grid' },
+    { name: 'settings', icon: 'settings' },
   ];
 
   const tabWidth = TAB_BAR_WIDTH / config.length;
@@ -40,12 +40,10 @@ export default function CustomTabBar({ state, descriptors, navigation }) {
         />
 
         {state.routes.map((route, index) => {
-          const { options } = descriptors[route.key];
           const isFocused = state.index === index;
 
           const onPress = () => {
-            const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-            if (!isFocused && !event.defaultPrevented) navigation.navigate(route.name);
+            navigation.navigate(route.name);
           };
 
           const tabConfig = config.find(c => c.name === route.name) || { icon: 'help' };

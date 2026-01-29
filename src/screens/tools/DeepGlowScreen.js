@@ -7,8 +7,10 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as ImageManipulator from 'expo-image-manipulator'; // 引入缩放库
 import { Ionicons } from '@expo/vector-icons';
 import { DeepGlowHTML } from '../../../assets/deepglow.html.js';
+import { useRouter } from 'expo-router';
 
-export default function DeepGlowScreen({ navigation }) {
+export default function DeepGlowScreen() {
+  const router = useRouter();
   const webViewRef = useRef(null);
   const [loading, setLoading] = useState(false);
 
@@ -44,7 +46,7 @@ export default function DeepGlowScreen({ navigation }) {
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: "images",
         allowsEditing: false, // 建议不在这里编辑，交给 WebGL 处理
         quality: 1,
       });
@@ -128,7 +130,7 @@ export default function DeepGlowScreen({ navigation }) {
       />
 
       <View style={styles.toolbar}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.btn}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.btn}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         

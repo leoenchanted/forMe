@@ -2,19 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { getFavorites } from '../utils/storage';
 import ImageGrid from '../components/ImageGrid';
 
-export default function FavoritesScreen({ navigation }) {
+export default function FavoritesScreen() {
+  const router = useRouter();
   const [favs, setFavs] = useState([]);
 
   // 每次进入页面时重新读取
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
+  useFocusEffect(
+    React.useCallback(() => {
       loadFavs();
-    });
-    return unsubscribe;
-  }, [navigation]);
+    }, [])
+  );
 
   const loadFavs = async () => {
     const data = await getFavorites();
@@ -25,7 +26,7 @@ export default function FavoritesScreen({ navigation }) {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color="#1e293b" />
         </TouchableOpacity>
         <Text style={styles.title}>My Collection</Text>
@@ -39,7 +40,7 @@ export default function FavoritesScreen({ navigation }) {
             <Text style={styles.emptyText}>No favorites yet.</Text>
           </View>
         ) : (
-          <ImageGrid results={favs} onDownload={(photo) => navigation.navigate('Detail', { photo })} />
+          <ImageGrid results={favs} onDownload={(photo) => router.push(`/vibewall/detail/${encodeURIComponent(JSON.stringify(photo))}`)} />
         )}
       </ScrollView>
     </SafeAreaView>

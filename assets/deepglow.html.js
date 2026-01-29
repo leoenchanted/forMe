@@ -22,7 +22,6 @@ export const DeepGlowHTML = `
     </script>
     <style>
         body { background-color: #000; overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
-        /* 隐藏滚动条 */
         ::-webkit-scrollbar { width: 0; }
         
         input[type=range] { 
@@ -37,7 +36,7 @@ export const DeepGlowHTML = `
         .controls-panel { height: 45vh; background: #111827; border-top: 1px solid #374151; overflow-y: auto; padding: 20px; padding-bottom: 40px; }
         .control-group { margin-bottom: 20px; }
         .control-label { display: flex; justify-content: space-between; font-size: 12px; color: #9ca3af; margin-bottom: 8px; font-family: monospace; }
-        .section-title { color: #8b5cf6; font-size: 12px; font-weight: bold; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; text-transform: uppercase; letter-spacing: 1px; }
+        .section-title { color: #00f2ff; font-size: 12px; font-weight: bold; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; text-transform: uppercase; letter-spacing: 1px; }
     </style>
 </head>
 <body>
@@ -51,22 +50,14 @@ export const DeepGlowHTML = `
         <canvas id="glCanvas" class="hidden"></canvas>
     </div>
 
-    <!-- 控制面板 (保留所有调节选项) -->
+    <!-- 控制面板 -->
     <div class="controls-panel">
         
-        <!-- 1. Deep Glow -->
-        <div class="section-title"><i class="fas fa-sun"></i> Deep Glow</div>
+        <!-- 1. Soft Glow (Ultra Algorithm) -->
+        <div class="section-title"><i class="fas fa-cloud-sun"></i> Soft Glow</div>
         <div class="control-group">
-            <div class="control-label"><span>Intensity</span><span id="bloomStrengthVal">0.0</span></div>
-            <input type="range" id="bloomStrength" min="0" max="300" value="0" step="1">
-        </div>
-        <div class="control-group">
-            <div class="control-label"><span>Threshold</span><span id="bloomThresholdVal">0.70</span></div>
-            <input type="range" id="bloomThreshold" min="0" max="100" value="70" step="1">
-        </div>
-        <div class="control-group">
-            <div class="control-label"><span>Radius</span><span id="bloomRadiusVal">100</span></div>
-            <input type="range" id="bloomRadius" min="0" max="500" value="100" step="1">
+            <div class="control-label"><span>Intensity</span><span id="softGlowIntensityVal">50</span></div>
+            <input type="range" id="softGlowIntensity" min="0" max="100" value="50" step="1">
         </div>
 
         <hr style="border-color: #374151; margin: 15px 0;">
@@ -117,7 +108,7 @@ export const DeepGlowHTML = `
     </div>
 
 <script>
-    // --- WebGL Shaders (完整保留) ---
+    // --- Vertex Shader (shared) ---
     const VS_SOURCE = \`
         attribute vec2 a_position;
         attribute vec2 a_texCoord;
@@ -128,155 +119,135 @@ export const DeepGlowHTML = `
         }
     \`;
 
-    const FS_COPY = \`
-        precision mediump float;
-        varying vec2 v_texCoord;
-        uniform sampler2D u_image;
-        void main() {
-            gl_FragColor = texture2D(u_image, v_texCoord);
-        }
-    \`;
-
+    // --- Preprocess Shader (Color Grading) ---
     const FS_PREPROCESS = \`
         precision mediump float;
         varying vec2 v_texCoord;
         uniform sampler2D u_image;
+        
         uniform float u_exposure;
         uniform float u_contrast;
         uniform float u_saturation;
         uniform float u_temp;
         uniform float u_highs;
         uniform float u_shadows;
-        uniform float u_bloomThresh;
 
-        vec3 adjustColor(vec3 color) {
-            color = color * pow(2.0, u_exposure);
-            color = (color - 0.5) * (u_contrast + 1.0) + 0.5;
-            float gray = dot(color, vec3(0.299, 0.587, 0.114));
-            color = mix(vec3(gray), color, u_saturation + 1.0);
-            color.r += u_temp * 0.1;
-            color.b -= u_temp * 0.1;
-                        // ✅ 新增：高光与阴影调节逻辑
-            // 计算当前像素亮度
-            float luminance = dot(color, vec3(0.299, 0.587, 0.114));
-            
-            // 阴影遮罩：亮度越低，遮罩越白 (0.5以下开始生效)
-            float shadowMask = 1.0 - smoothstep(0.0, 0.5, luminance);
-            // 高光遮罩：亮度越高，遮罩越白 (0.5以上开始生效)
-            float highlightMask = smoothstep(0.5, 1.0, luminance);
-
-            // 应用调节 (u_shadows/u_highs 范围是 -1.0 到 1.0)
-            color += color * u_shadows * shadowMask * 0.5; // 0.5 是为了防止调节过猛
-            color += color * u_highs * highlightMask * 0.5;
+        vec3 applyContrast(vec3 color, float contrast) {
+            float c = contrast * 0.5;
+            color = clamp(color, 0.0, 1.0);
+            color = color - 0.5;
+            color = color * (1.0 + c) / (1.0 + abs(color) * c);
+            color = color + 0.5;
             return clamp(color, 0.0, 1.0);
         }
-
+        
+        vec3 applyTemperature(vec3 color, float temp) {
+            float t = clamp(temp, -1.0, 1.0);
+            vec3 warm = vec3(1.06, 1.01, 0.96);
+            vec3 cool = vec3(0.96, 1.01, 1.06);
+            vec3 balance = mix(cool, warm, t * 0.5 + 0.5);
+            return clamp(color * balance, 0.0, 1.0);
+        }
+        
+        vec3 adjustShadows(vec3 color, float amount) {
+            amount = clamp(amount, 0.0, 1.0);
+            float lum = dot(color, vec3(0.299, 0.587, 0.114));
+            float mask = 1.0 - smoothstep(0.0, 0.25, lum);
+            float targetLum = mix(lum, 0.2, amount * mask);
+            float delta = targetLum - lum;
+            return clamp(color + delta, 0.0, 1.0);
+        }
+        
+        vec3 adjustHighlights(vec3 color, float amount) {
+            float lum = dot(color, vec3(0.299, 0.587, 0.114));
+            float mask = smoothstep(0.6, 1.0, lum);
+            float compressed = mix(lum, 1.0 - exp(-lum * 4.0), amount * mask);
+            return color * (compressed / max(lum, 0.001));
+        }
+        
+        vec3 adjustColor(vec3 color) {
+            color = color * pow(2.0, u_exposure);
+            color = applyContrast(color, u_contrast);
+            float gray = dot(color, vec3(0.299, 0.587, 0.114));
+            color = mix(vec3(gray), color, u_saturation + 1.0);
+            color = applyTemperature(color, u_temp);
+            color = adjustShadows(color, u_shadows);
+            color = adjustHighlights(color, u_highs);
+            return clamp(color, 0.0, 1.0);
+        }
+        
         void main() {
             vec4 texColor = texture2D(u_image, v_texCoord);
             vec3 color = adjustColor(texColor.rgb);
-            gl_FragColor = vec4(color, 1.0);    
-        }
-    \`;
-
-    const FS_BLUR = \`
-        precision mediump float;
-        varying vec2 v_texCoord;
-        uniform sampler2D u_image;
-        uniform vec2 u_resolution;
-        uniform vec2 u_direction; 
-        uniform bool u_isFirstPass; 
-        uniform float u_bloomThresh;
-
-        void main() {
-            vec2 off1 = vec2(1.3846153846) * u_direction;
-            vec2 off2 = vec2(3.2307692308) * u_direction;
-            vec3 color = vec3(0.0);
-            float weight0 = 0.227027;
-            float weight1 = 0.316216; 
-            float weight2 = 0.070270;
-            
-            vec4 c = texture2D(u_image, v_texCoord);
-            vec3 center = c.rgb;
-            if (u_isFirstPass) {
-                float brightness = dot(center, vec3(0.2126, 0.7152, 0.0722));
-                center *= smoothstep(u_bloomThresh, u_bloomThresh + 0.1, brightness);
-            }
-            color += center * weight0;
-            
-            vec3 s1 = texture2D(u_image, v_texCoord + (off1 / u_resolution)).rgb;
-            vec3 s2 = texture2D(u_image, v_texCoord - (off1 / u_resolution)).rgb;
-            if(u_isFirstPass) {
-                float b1 = dot(s1, vec3(0.2126, 0.7152, 0.0722)); s1 *= smoothstep(u_bloomThresh, u_bloomThresh+0.1, b1);
-                float b2 = dot(s2, vec3(0.2126, 0.7152, 0.0722)); s2 *= smoothstep(u_bloomThresh, u_bloomThresh+0.1, b2);
-            }
-            color += (s1 + s2) * weight1;
-            
-            vec3 s3 = texture2D(u_image, v_texCoord + (off2 / u_resolution)).rgb;
-            vec3 s4 = texture2D(u_image, v_texCoord - (off2 / u_resolution)).rgb;
-            if(u_isFirstPass) {
-                float b3 = dot(s3, vec3(0.2126, 0.7152, 0.0722)); s3 *= smoothstep(u_bloomThresh, u_bloomThresh+0.1, b3);
-                float b4 = dot(s4, vec3(0.2126, 0.7152, 0.0722)); s4 *= smoothstep(u_bloomThresh, u_bloomThresh+0.1, b4);
-            }
-            color += (s3 + s4) * weight2;
             gl_FragColor = vec4(color, 1.0);
         }
     \`;
 
-    const FS_COMPOSITE = \`
-        precision mediump float;
-        varying vec2 v_texCoord;
-        uniform sampler2D u_base;  
-        uniform sampler2D u_bloom; 
-        
-        uniform float u_bloomStrength;
-        uniform float u_grain;
-        uniform float u_vignette;
-        uniform float u_aberration; 
-        uniform float u_time; 
+    // --- ULTRA SOFT GLOW SHADER (Original Algorithm, Full Quality) ---
+    const FS_SOFT_GLOW = \`
+        precision highp float;
 
-        float rand(vec2 n) { return fract(sin(dot(n, vec2(12.9898, 4.1414))) * 43758.5453); }
+        uniform sampler2D u_image;
+        uniform vec2 u_resolution;
+        uniform float u_glowAmount; // 0.0 to 1.0
+
+        varying vec2 v_texCoord;
+
+        float random(vec3 scale, float seed) {
+            return fract(sin(dot(gl_FragCoord.xyz + seed, scale)) * 43758.5453 + seed);
+        }
+
+        vec3 blendScreen(vec3 base, vec3 blend) {
+            return 1.0 - ((1.0 - base) * (1.0 - blend));
+        }
 
         void main() {
-            vec3 baseColor;
-            if (u_aberration > 0.0) {
-                float dist = distance(v_texCoord, vec2(0.5));
-                vec2 offset = (v_texCoord - 0.5) * u_aberration * dist * 0.05;
-                float r = texture2D(u_base, v_texCoord - offset).r;
-                float g = texture2D(u_base, v_texCoord).g;
-                float b = texture2D(u_base, v_texCoord + offset).b;
-                baseColor = vec3(r, g, b);
-            } else {
-                baseColor = texture2D(u_base, v_texCoord).rgb;
-            }
-
-            vec3 bloomColor = texture2D(u_bloom, v_texCoord).rgb;
-            vec3 result = baseColor + (bloomColor * u_bloomStrength);
+            vec4 originalColor = texture2D(u_image, v_texCoord);
             
-            vec2 uv = v_texCoord * 2.0 - 1.0; 
-            float dist = length(uv);
-            float vig = smoothstep(0.5, 1.5, dist * (1.0 + u_vignette));
-            result *= (1.0 - vig * 0.6 * u_vignette);
+            vec3 blurColor = vec3(0.0);
+            float totalWeight = 0.0;
+            float offset = (u_glowAmount * 4.0 + 1.0) / min(u_resolution.x, u_resolution.y); 
+            const float directions = 16.0;
+            const float quality = 4.0; 
+            const float pi = 3.14159265359;
+            float dither = random(vec3(12.9898, 78.233, 151.7182), 0.0);
 
-            if (u_grain > 0.0) {
-                float noise = rand(v_texCoord * 10.0 + mod(u_time, 10.0));
-                float lum = dot(result, vec3(0.2126, 0.7152, 0.0722));
-                float mask = 1.0 - pow(abs(lum - 0.5) * 2.0, 2.0); 
-                result = mix(result, result + (noise - 0.5) * 0.2, u_grain * mask);
+            for(float d = 0.0; d < pi * 2.0; d += pi * 2.0 / directions) {
+                for(float i = 1.0; i <= quality; i++) {
+                    float r = i / quality + (dither * 0.1 / quality);
+                    vec2 uvOffset = vec2(cos(d), sin(d)) * offset * r * 5.0;
+                    vec3 sampleC = texture2D(u_image, v_texCoord + uvOffset).rgb;
+                    float luma = dot(sampleC, vec3(0.299, 0.587, 0.114));
+                    float weight = 1.0 + (luma * 1.5);
+                    blurColor += sampleC * weight;
+                    totalWeight += weight;
+                }
             }
-            gl_FragColor = vec4(result, 1.0);
+            blurColor /= totalWeight;
+            
+            vec3 gray = vec3(dot(blurColor, vec3(0.2126, 0.7152, 0.0722)));
+            blurColor = mix(gray, blurColor, 1.3);
+            vec3 glow = blendScreen(originalColor.rgb, blurColor);
+            float mixFactor = smoothstep(0.0, 1.0, u_glowAmount * 0.8 + 0.1);
+            vec3 finalColor = mix(originalColor.rgb, glow, mixFactor);
+            finalColor = finalColor - 0.02;
+            finalColor = (finalColor - 0.5) * 1.05 + 0.5;
+            
+            gl_FragColor = vec4(finalColor, originalColor.a);
         }
     \`;
 
-    // --- Core Logic ---
+    // --- Core State & GL Context ---
     const canvas = document.getElementById('glCanvas');
     const gl = canvas.getContext('webgl', { preserveDrawingBuffer: true, alpha: false }); 
     const state = {
         textureOriginal: null,
-        fboBase: null, fboPing: null, fboPong: null, 
-        width: 0, height: 0, programs: {}
+        fboPreprocessed: null,
+        width: 0, height: 0,
+        programs: {}
     };
 
-    // 监听 React Native 发来的消息
+    // Message handling for React Native
     document.addEventListener('message', handleRNMessage);
     window.addEventListener('message', handleRNMessage);
 
@@ -299,14 +270,15 @@ export const DeepGlowHTML = `
             canvas.width = state.width;
             canvas.height = state.height;
             
-            // Re-init WebGL with new dimensions
             if (state.textureOriginal) gl.deleteTexture(state.textureOriginal);
             state.textureOriginal = createTexture(gl, img);
             
-            const bloomScale = 0.5;
-            state.fboBase = createFramebuffer(gl, state.width, state.height);
-            state.fboPing = createFramebuffer(gl, state.width * bloomScale, state.height * bloomScale);
-            state.fboPong = createFramebuffer(gl, state.width * bloomScale, state.height * bloomScale);
+            // Only one FBO needed: for preprocessed image
+            if (state.fboPreprocessed) {
+                gl.deleteFramebuffer(state.fboPreprocessed.fbo);
+                gl.deleteTexture(state.fboPreprocessed.tex);
+            }
+            state.fboPreprocessed = createFramebuffer(gl, state.width, state.height);
             
             document.getElementById('placeholder').classList.add('hidden');
             canvas.classList.remove('hidden');
@@ -319,21 +291,19 @@ export const DeepGlowHTML = `
     function saveImage() {
         requestAnimationFrame(() => {
             render();
-            // 获取 Base64 发回给 App
-    // 稍微延迟确保缓冲区就绪
-    setTimeout(() => {
-        try {
-            const dataURL = canvas.toDataURL('image/jpeg', 0.95);
-            if (window.ReactNativeWebView) {
-                window.ReactNativeWebView.postMessage(JSON.stringify({ 
-                    type: 'saveResult', 
-                    payload: dataURL 
-                }));
-            }
-        } catch (e) {
-            console.error("Canvas toDataURL failed", e);
-        }
-    }, 100); 
+            setTimeout(() => {
+                try {
+                    const dataURL = canvas.toDataURL('image/jpeg', 0.95);
+                    if (window.ReactNativeWebView) {
+                        window.ReactNativeWebView.postMessage(JSON.stringify({ 
+                            type: 'saveResult', 
+                            payload: dataURL 
+                        }));
+                    }
+                } catch (e) {
+                    console.error("Canvas toDataURL failed", e);
+                }
+            }, 100); 
         });
     }
 
@@ -342,7 +312,10 @@ export const DeepGlowHTML = `
         const shader = gl.createShader(type);
         gl.shaderSource(shader, source);
         gl.compileShader(shader);
-        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) return null;
+        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+            console.error(gl.getShaderInfoLog(shader));
+            return null;
+        }
         return shader;
     }
     function createProgram(gl, vsSource, fsSource) {
@@ -352,6 +325,9 @@ export const DeepGlowHTML = `
         gl.attachShader(prog, vs);
         gl.attachShader(prog, fs);
         gl.linkProgram(prog);
+        if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+            console.error(gl.getProgramInfoLog(prog));
+        }
         return prog;
     }
     function createTexture(gl, image) {
@@ -381,22 +357,28 @@ export const DeepGlowHTML = `
 
     function initGL() {
         if (!gl) return;
-        state.programs.copy = createProgram(gl, VS_SOURCE, FS_COPY);
         state.programs.preprocess = createProgram(gl, VS_SOURCE, FS_PREPROCESS);
-        state.programs.blur = createProgram(gl, VS_SOURCE, FS_BLUR);
-        state.programs.composite = createProgram(gl, VS_SOURCE, FS_COMPOSITE);
+        state.programs.softGlow = createProgram(gl, VS_SOURCE, FS_SOFT_GLOW);
+        
         const buf = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 0, 0, 1, -1, 1, 0, -1, 1, 0, 1, -1, 1, 0, 1, 1, -1, 1, 0, 1, 1, 1, 1]), gl.STATIC_DRAW);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+            -1, -1, 0, 0,
+             1, -1, 1, 0,
+            -1,  1, 0, 1,
+            -1,  1, 0, 1,
+             1, -1, 1, 0,
+             1,  1, 1, 1
+        ]), gl.STATIC_DRAW);
     }
 
     function render() {
         if (!state.textureOriginal) return;
         gl.viewport(0, 0, state.width, state.height);
         
-        // 1. Preprocess
+        // Step 1: Preprocess (Color Grading)
         gl.useProgram(state.programs.preprocess);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, state.fboBase.fbo);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, state.fboPreprocessed.fbo);
         bindUniformsPreprocess();
         bindQuad(state.programs.preprocess);
         gl.activeTexture(gl.TEXTURE0);
@@ -404,63 +386,16 @@ export const DeepGlowHTML = `
         gl.uniform1i(gl.getUniformLocation(state.programs.preprocess, "u_image"), 0);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
 
-        // 2. Bloom Blur
-        const radius = parseInt(document.getElementById('bloomRadius').value) / 20; 
-        const iterations = Math.max(2, Math.floor(radius)); 
-        
-        gl.useProgram(state.programs.blur);
-        bindQuad(state.programs.blur);
-        
-        // First blur pass
-        gl.bindFramebuffer(gl.FRAMEBUFFER, state.fboPing.fbo);
-        gl.viewport(0, 0, state.fboPing.width, state.fboPing.height);
+        // Step 2: Apply Ultra Soft Glow
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.useProgram(state.programs.softGlow);
+        bindQuad(state.programs.softGlow);
         gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, state.fboBase.tex);
-        gl.uniform1i(gl.getUniformLocation(state.programs.blur, "u_image"), 0);
-        
-        gl.uniform2f(gl.getUniformLocation(state.programs.blur, "u_resolution"), state.fboPing.width, state.fboPing.height);
-        gl.uniform2f(gl.getUniformLocation(state.programs.blur, "u_direction"), 1.0, 0.0);
-        gl.uniform1i(gl.getUniformLocation(state.programs.blur, "u_isFirstPass"), 1);
-        gl.uniform1f(gl.getUniformLocation(state.programs.blur, "u_bloomThresh"), parseInt(document.getElementById('bloomThreshold').value) / 100);
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
-
-        let currFBO = state.fboPing; 
-        let nextFBO = state.fboPong;
-        const uDir = gl.getUniformLocation(state.programs.blur, "u_direction");
-        const uFirst = gl.getUniformLocation(state.programs.blur, "u_isFirstPass");
-
-        for (let i = 0; i < iterations; i++) {
-            gl.bindFramebuffer(gl.FRAMEBUFFER, nextFBO.fbo);
-            gl.bindTexture(gl.TEXTURE_2D, currFBO.tex);
-            gl.uniform2f(uDir, 0.0, 1.0);
-            gl.uniform1i(uFirst, 0); 
-            gl.drawArrays(gl.TRIANGLES, 0, 6);
-            let temp = currFBO; currFBO = nextFBO; nextFBO = temp;
-
-            gl.bindFramebuffer(gl.FRAMEBUFFER, nextFBO.fbo);
-            gl.bindTexture(gl.TEXTURE_2D, currFBO.tex);
-            gl.uniform2f(uDir, 1.0, 0.0);
-            gl.drawArrays(gl.TRIANGLES, 0, 6);
-            temp = currFBO; currFBO = nextFBO; nextFBO = temp;
-        }
-
-        // 3. Composite
-        gl.bindFramebuffer(gl.FRAMEBUFFER, null); 
-        gl.viewport(0, 0, state.width, state.height);
-        gl.useProgram(state.programs.composite);
-        bindQuad(state.programs.composite);
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, state.fboBase.tex);
-        gl.uniform1i(gl.getUniformLocation(state.programs.composite, "u_base"), 0);
-        gl.activeTexture(gl.TEXTURE1);
-        gl.bindTexture(gl.TEXTURE_2D, currFBO.tex);
-        gl.uniform1i(gl.getUniformLocation(state.programs.composite, "u_bloom"), 1);
-        
-        gl.uniform1f(gl.getUniformLocation(state.programs.composite, "u_bloomStrength"), document.getElementById('bloomStrength').value / 100);
-        gl.uniform1f(gl.getUniformLocation(state.programs.composite, "u_grain"), document.getElementById('grain').value / 100);
-        gl.uniform1f(gl.getUniformLocation(state.programs.composite, "u_vignette"), document.getElementById('vignette').value / 100);
-        gl.uniform1f(gl.getUniformLocation(state.programs.composite, "u_aberration"), document.getElementById('aberration').value / 100);
-        gl.uniform1f(gl.getUniformLocation(state.programs.composite, "u_time"), Date.now() / 1000);
+        gl.bindTexture(gl.TEXTURE_2D, state.fboPreprocessed.tex);
+        gl.uniform1i(gl.getUniformLocation(state.programs.softGlow, "u_image"), 0);
+        gl.uniform2f(gl.getUniformLocation(state.programs.softGlow, "u_resolution"), state.width, state.height);
+        gl.uniform1f(gl.getUniformLocation(state.programs.softGlow, "u_glowAmount"), 
+                     document.getElementById('softGlowIntensity').value / 100.0);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
     }
 
@@ -476,31 +411,41 @@ export const DeepGlowHTML = `
     function bindUniformsPreprocess() {
         const p = state.programs.preprocess;
         const getVal = (id) => parseInt(document.getElementById(id).value);
-        gl.uniform1f(gl.getUniformLocation(p, "u_exposure"), getVal('exposure')/100);
-        gl.uniform1f(gl.getUniformLocation(p, "u_contrast"), getVal('contrast')/100);
-        gl.uniform1f(gl.getUniformLocation(p, "u_saturation"), getVal('saturation')/100);
-        gl.uniform1f(gl.getUniformLocation(p, "u_temp"), getVal('temperature')/50);
-        // highs/shadows 暂时不用，或者你可以在 html 添加对应滑块
+        gl.uniform1f(gl.getUniformLocation(p, "u_exposure"), getVal('exposure') / 100);
+        gl.uniform1f(gl.getUniformLocation(p, "u_contrast"), getVal('contrast') / 100);
+        gl.uniform1f(gl.getUniformLocation(p, "u_saturation"), getVal('saturation') / 100);
+        gl.uniform1f(gl.getUniformLocation(p, "u_temp"), getVal('temperature') / 50);
         gl.uniform1f(gl.getUniformLocation(p, "u_highs"), getVal('highlights') / 100);
         gl.uniform1f(gl.getUniformLocation(p, "u_shadows"), getVal('shadows') / 100);
-        gl.uniform1f(gl.getUniformLocation(p, "u_bloomThresh"), getVal('bloomThreshold')/100);
     }
 
-    const inputs = ['bloomStrength','bloomThreshold','bloomRadius','grain','vignette','aberration','temperature','exposure','contrast','saturation','highlights','shadows'];
-    inputs.forEach(id => {
-        const el = document.getElementById(id);
-        const disp = document.getElementById(id + 'Val');
-        el.addEventListener('input', (e) => {
-            if(disp) {
-                let val = e.target.value;
-                if(id === 'bloomThreshold') val = (val/100).toFixed(2);
-                if(id === 'bloomStrength') val = (val/100).toFixed(1);
-                else if(['exposure','contrast','saturation','highlights','shadows'].includes(id)) val = (val / 100).toFixed(1);
-                else val = val;
-                disp.textContent = val;
-            }
+    // UI Event Listeners
+    const toneInputs = ['exposure','contrast','saturation','highlights','shadows'];
+    toneInputs.forEach(id => {
+        document.getElementById(id).addEventListener('input', (e) => {
+            const val = (parseInt(e.target.value) / 100).toFixed(1);
+            document.getElementById(id + 'Val').textContent = val;
             requestAnimationFrame(render);
         });
+    });
+
+    const filmInputs = ['grain','vignette','aberration'];
+    filmInputs.forEach(id => {
+        document.getElementById(id).addEventListener('input', (e) => {
+            document.getElementById(id + 'Val').textContent = e.target.value;
+            requestAnimationFrame(render);
+        });
+    });
+
+    document.getElementById('temperature').addEventListener('input', (e) => {
+        document.getElementById('temperatureVal').textContent = (parseInt(e.target.value) / 50).toFixed(1);
+        requestAnimationFrame(render);
+    });
+
+    // Soft Glow Intensity
+    document.getElementById('softGlowIntensity').addEventListener('input', (e) => {
+        document.getElementById('softGlowIntensityVal').textContent = e.target.value;
+        requestAnimationFrame(render);
     });
 
     initGL();

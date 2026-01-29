@@ -21,6 +21,12 @@
         "buildType": "apk"
       }
     },
+    "troll": {
+      "ios": {
+        "simulator": true,
+        "resourceClass": "m1-medium"
+      }
+    },
     "production": {
       "autoIncrement": true
     }

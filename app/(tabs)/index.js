@@ -1,37 +1,29 @@
-import React, { useState, useEffect } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ImageBackground,
-  TouchableOpacity,
-  ScrollView,
-  RefreshControl,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
-import * as ImagePicker from "expo-image-picker";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import Constants from "expo-constants";
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ImageBackground, TouchableOpacity, ScrollView, RefreshControl } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 // 引入 API
-import { fetchRealtimeWeather } from "../../api/weather";
-import { fetchDailyQuote } from "../../api/quote";
-
+import { fetchRealtimeWeather } from '../../src/api/weather';
+import { fetchDailyQuote } from '../../src/api/quote';
+ 
 export default function HomeScreen() {
   const [bgImage, setBgImage] = useState(null);
   const [weather, setWeather] = useState({
-    temp: "--",
-    condition: "Loading...",
-    icon: "partly-sunny",
-    city: "Your City",
+    temp: '--',
+    condition: 'Loading...',
+    icon: 'partly-sunny',
+    city: 'Your City'
   });
   const [quote, setQuote] = useState({
-    en: "Loading...",
-    zh: "加载中...",
-    source: "",
+    en: 'Loading...',
+    zh: '加载中...',
+    source: ''
   });
   const [refreshing, setRefreshing] = useState(false);
-  const [location, setLocation] = useState("beijing"); // 默认城市，可以改成你的城市
+  const [location, setLocation] = useState('beijing'); // 默认城市，可以改成你的城市
 
   useEffect(() => {
     loadBg();
@@ -40,14 +32,14 @@ export default function HomeScreen() {
 
   const loadBg = async () => {
     try {
-      const saved = await AsyncStorage.getItem("home_bg");
+      const saved = await AsyncStorage.getItem('home_bg');
       // 安全检查：只有以 file:// 开头的才是有效的本地图片路径
-      if (saved && saved.startsWith("file://")) {
+      if (saved && saved.startsWith('file://')) {
         setBgImage(saved);
       } else if (saved) {
         // 如果存的是垃圾数据，删掉它
         console.log("发现无效背景图数据，已清除");
-        await AsyncStorage.removeItem("home_bg");
+        await AsyncStorage.removeItem('home_bg');
       }
     } catch (e) {
       console.error("读取背景图失败:", e);
@@ -64,7 +56,7 @@ export default function HomeScreen() {
       // 并行获取天气和每日一句
       const [weatherData, quoteData] = await Promise.all([
         fetchRealtimeWeather(location, qweatherApiKey),
-        fetchDailyQuote(),
+        fetchDailyQuote()
       ]);
 
       // 更新天气数据
@@ -87,7 +79,7 @@ export default function HomeScreen() {
         });
       }
     } catch (error) {
-      console.error("获取数据失败:", error);
+      console.error('获取数据失败:', error);
     } finally {
       setRefreshing(false);
     }
@@ -98,14 +90,14 @@ export default function HomeScreen() {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: "images",
         allowsEditing: true, // 允许裁剪
-        aspect: [9, 16], // 限制比例，防止图片过大
-        quality: 0.7, // 压缩质量 (0-1)，0.7 可以有效防止内存溢出闪退！
+        aspect: [9, 16],     // 限制比例，防止图片过大
+        quality: 0.7,        // 压缩质量 (0-1)，0.7 可以有效防止内存溢出闪退！
       });
 
       if (!result.canceled) {
         const uri = result.assets[0].uri;
         setBgImage(uri);
-        await AsyncStorage.setItem("home_bg", uri);
+        await AsyncStorage.setItem('home_bg', uri);
       }
     } catch (e) {
       console.log("选图取消或失败:", e);
@@ -116,12 +108,12 @@ export default function HomeScreen() {
   const bgSource = bgImage ? { uri: bgImage } : null;
 
   return (
-    <ImageBackground
-      source={bgSource}
-      style={styles.bg}
-      resizeMode="cover"
-      // 默认背景色，防止图片加载慢时白屏
-      imageStyle={{ backgroundColor: "#0f172a" }}
+    <ImageBackground 
+        source={bgSource} 
+        style={styles.bg} 
+        resizeMode="cover"
+        // 默认背景色，防止图片加载慢时白屏
+        imageStyle={{ backgroundColor: '#0f172a' }}
     >
       <View style={styles.overlay}>
         <SafeAreaView style={styles.container}>
@@ -129,28 +121,20 @@ export default function HomeScreen() {
           <View style={styles.header}>
             <View>
               <Text style={styles.date}>{new Date().toDateString()}</Text>
-              <Text style={styles.greeting}>Hi,</Text>
+              <Text style={styles.greeting}>Hi, CreatoWr!</Text>
             </View>
             <TouchableOpacity onPress={changeBg} style={styles.iconBtn}>
               <Ionicons name="image-outline" size={20} color="#fff" />
             </TouchableOpacity>
           </View>
 
-          <ScrollView
+          <ScrollView 
             contentContainerStyle={styles.scroll}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={fetchData}
-                tintColor="#fff"
-              />
-            }
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={fetchData} tintColor="#fff"/>}
           >
             {/* Weather Card */}
             <View style={styles.card}>
-              <View
-                style={{ flexDirection: "row", alignItems: "center", gap: 10 }}
-              >
+              <View style={{flexDirection:'row', alignItems:'center', gap:10}}>
                 <Ionicons name={weather.icon} size={40} color="#fbbf24" />
                 <View>
                   <Text style={styles.temp}>{weather.temp}</Text>
@@ -159,25 +143,14 @@ export default function HomeScreen() {
               </View>
               {/* 额外的天气信息 */}
               {weather.humidity && (
-                <View
-                  style={{
-                    flexDirection: "row",
-                    gap: 20,
-                    marginTop: 12,
-                    paddingTop: 12,
-                    borderTopWidth: 1,
-                    borderTopColor: "rgba(255,255,255,0.1)",
-                  }}
-                >
+                <View style={{flexDirection:'row', gap:20, marginTop:12, paddingTop:12, borderTopWidth:1, borderTopColor:'rgba(255,255,255,0.1)'}}>
                   <View>
                     <Text style={styles.weatherLabel}>湿度</Text>
                     <Text style={styles.weatherValue}>{weather.humidity}%</Text>
                   </View>
                   <View>
                     <Text style={styles.weatherLabel}>风速</Text>
-                    <Text style={styles.weatherValue}>
-                      {weather.windSpeed}km/h
-                    </Text>
+                    <Text style={styles.weatherValue}>{weather.windSpeed}km/h</Text>
                   </View>
                 </View>
               )}
@@ -202,56 +175,21 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  bg: { flex: 1, backgroundColor: "#0f172a" },
-  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.3)" },
+  bg: { flex: 1, backgroundColor: '#0f172a' },
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)' },
   container: { flex: 1 },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    padding: 20,
-    alignItems: "center",
-  },
-  date: { color: "#cbd5e1", fontSize: 12, textTransform: "uppercase" },
-  greeting: { color: "#fff", fontSize: 28, fontWeight: "bold" },
-  iconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    justifyContent: "center",
-    alignItems: "center",
-    backdropFilter: "blur(10)",
-  },
+  header: { flexDirection: 'row', justifyContent: 'space-between', padding: 20, alignItems: 'center' },
+  date: { color: '#cbd5e1', fontSize: 12, textTransform: 'uppercase' },
+  greeting: { color: '#fff', fontSize: 28, fontWeight: 'bold' },
+  iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center', backdropFilter: 'blur(10)' },
   scroll: { padding: 20 },
-  card: {
-    backgroundColor: "rgba(255,255,255,0.1)",
-    padding: 20,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-  },
-  temp: { color: "#fff", fontSize: 32, fontWeight: "bold" },
-  condition: { color: "#cbd5e1", fontSize: 14 },
-  weatherLabel: { color: "#94a3b8", fontSize: 12, marginBottom: 4 },
-  weatherValue: { color: "#fff", fontSize: 16, fontWeight: "600" },
-  quoteTitle: {
-    color: "#818cf8",
-    fontSize: 12,
-    fontWeight: "bold",
-    marginBottom: 8,
-  },
-  quoteText: {
-    color: "#fff",
-    fontSize: 18,
-    fontStyle: "italic",
-    lineHeight: 26,
-  },
-  quoteZh: { color: "#cbd5e1", fontSize: 14, marginTop: 8, lineHeight: 20 },
-  quoteSource: {
-    color: "#94a3b8",
-    fontSize: 12,
-    marginTop: 8,
-    textAlign: "right",
-    fontStyle: "italic",
-  },
+  card: { backgroundColor: 'rgba(255,255,255,0.1)', padding: 20, borderRadius: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  temp: { color: '#fff', fontSize: 32, fontWeight: 'bold' },
+  condition: { color: '#cbd5e1', fontSize: 14 },
+  weatherLabel: { color: '#94a3b8', fontSize: 12, marginBottom: 4 },
+  weatherValue: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  quoteTitle: { color: '#818cf8', fontSize: 12, fontWeight: 'bold', marginBottom: 8 },
+  quoteText: { color: '#fff', fontSize: 18, fontStyle: 'italic', lineHeight: 26 },
+  quoteZh: { color: '#cbd5e1', fontSize: 14, marginTop: 8, lineHeight: 20 },
+  quoteSource: { color: '#94a3b8', fontSize: 12, marginTop: 8, textAlign: 'right', fontStyle: 'italic' }
 });

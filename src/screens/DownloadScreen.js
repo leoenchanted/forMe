@@ -3,8 +3,10 @@ import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, StatusBar, A
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useDownloads } from '../context/DownloadContext';
+import { useRouter } from 'expo-router';
 
-export default function DownloadScreen({ navigation }) {
+export default function DownloadScreen() {
+  const router = useRouter();
   const { downloads, pauseDownload, resumeDownload, deleteTask } = useDownloads();
 
   const handlePress = (item) => {
@@ -13,7 +15,7 @@ export default function DownloadScreen({ navigation }) {
     } else if (item.status === 'paused' || item.status === 'error') {
       resumeDownload(item.id);
     } else if (item.status === 'success') {
-      navigation.navigate('Detail', { photo: item.originalPhoto });
+      router.push(`/vibewall/detail/${encodeURIComponent(JSON.stringify(item.originalPhoto))}`);
     }
   };
 
@@ -109,7 +111,7 @@ export default function DownloadScreen({ navigation }) {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color="#1e293b" />
         </TouchableOpacity>
         <Text style={styles.title}>Downloads</Text>
