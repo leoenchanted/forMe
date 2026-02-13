@@ -24,7 +24,7 @@ export default ({config}) => {
     ...config,
     name: IS_DEV ? "forme (Dev)" : "forMe", // 开发版名字不一样
     slug: "forMe",
-    version: "1.1.8",
+    version: "1.2.0",
     orientation: "portrait",
     icon: "./assets/icon.png",
     userInterfaceStyle: "light",
