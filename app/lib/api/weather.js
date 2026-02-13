@@ -2,15 +2,55 @@
  * 和风天气 API 调用
  * 文档: https://dev.qweather.com/docs/api/
  */
+import Constants from 'expo-constants';
+
+/**
+ * 获取城市信息（用于搜索城市）
+ * @param {string} location - 城市关键词
+ * @param {string} apiKey - 和风天气 API Key (可选)
+ * @returns {Promise<Array>} 城市列表
+ */
+export const searchCity = async (location, apiKey = null) => {
+  // 如果没有提供API Key，从环境变量中获取
+  if (!apiKey) {
+    apiKey = Constants.expoConfig?.extra?.qweatherApiKey || '';
+  }
+
+  if (!apiKey) {
+    console.warn('和风天气 API Key 未配置，无法搜索城市');
+    return [];
+  }
+
+  try {
+    const url = `https://geoapi.qweather.com/v2/city/lookup?location=${encodeURIComponent(location)}&key=${apiKey}`;
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (data.code !== '200') {
+      console.error('城市搜索失败:', data.code);
+      return [];
+    }
+
+    return data.location || [];
+  } catch (error) {
+    console.error('城市搜索错误:', error);
+    return [];
+  }
+};
 
 /**
  * 获取实时天气
  * @param {string} location - 城市名称、经纬度或 Location ID (例如: "beijing", "116.41,39.92")
- * @param {string} apiKey - 和风天气 API Key
+ * @param {string} apiKey - 和风天气 API Key (可选，如果不提供会从环境变量中读取)
  * @returns {Promise<Object>} 天气数据
  */
-export const fetchRealtimeWeather = async (location, apiKey) => {
-  if (!apiKey || apiKey === 'your_qweather_api_key_here') {
+export const fetchRealtimeWeather = async (location, apiKey = null) => {
+  // 如果没有提供API Key，从环境变量中获取
+  if (!apiKey) {
+    apiKey = Constants.expoConfig?.extra?.qweatherApiKey || '';
+  }
+
+  if (!apiKey) {
     console.warn('和风天气 API Key 未配置，返回模拟数据');
     // 返回模拟数据
     return {
@@ -24,8 +64,28 @@ export const fetchRealtimeWeather = async (location, apiKey) => {
   }
 
   try {
+    let locationId = location;
+    
+    // 检查是否是经纬度格式 (例如: "116.41,39.92")
+    const isCoordinates = /^\d+\.\d+,\d+\.\d+$/.test(location);
+    
+    // 检查是否是LocationID格式 (纯数字)
+    const isLocationId = /^\d+$/.test(location);
+    
+    // 如果是城市名称，先获取LocationID
+    if (!isCoordinates && !isLocationId) {
+      const cities = await searchCity(location, apiKey);
+      if (cities.length > 0) {
+        locationId = cities[0].id;
+        location = cities[0].name;
+      } else {
+        console.warn('未找到城市:', location);
+        return null;
+      }
+    }
+
     // 和风天气实时天气接口
-    const url = `https://devapi.qweather.com/v7/weather/now?location=${encodeURIComponent(location)}&key=${apiKey}`;
+    const url = `https://devapi.qweather.com/v7/weather/now?location=${encodeURIComponent(locationId)}&key=${apiKey}`;
 
     const response = await fetch(url);
     const data = await response.json();
@@ -42,7 +102,7 @@ export const fetchRealtimeWeather = async (location, apiKey) => {
       temp: now.temp, // 温度
       condition: now.text, // 天气状况文字
       icon: mapWeatherIcon(now.icon), // 映射图标
-      feelsLike: now.feelsLike, // 体感温度
+      city: location, // 城市名称
       humidity: now.humidity, // 湿度
       windSpeed: now.windSpeed, // 风速
       windDir: now.windDir, // 风向
@@ -122,30 +182,4 @@ const mapWeatherIcon = (iconCode) => {
   return iconMap[iconCode] || 'partly-sunny'; // 默认图标
 };
 
-/**
- * 获取城市信息（用于搜索城市）
- * @param {string} location - 城市关键词
- * @param {string} apiKey - 和风天气 API Key
- * @returns {Promise<Array>} 城市列表
- */
-export const searchCity = async (location, apiKey) => {
-  if (!apiKey || apiKey === 'your_qweather_api_key_here') {
-    return [];
-  }
 
-  try {
-    const url = `https://geoapi.qweather.com/v2/city/lookup?location=${encodeURIComponent(location)}&key=${apiKey}`;
-    const response = await fetch(url);
-    const data = await response.json();
-
-    if (data.code !== '200') {
-      console.error('城市搜索失败:', data.code);
-      return [];
-    }
-
-    return data.location || [];
-  } catch (error) {
-    console.error('城市搜索错误:', error);
-    return [];
-  }
-};

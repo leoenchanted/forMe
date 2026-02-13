@@ -1,6 +1,6 @@
-import { DeepGlowHTML } from '../../assets/deepglow.html.js';
+import { DeepGlowHTML } from './html/deepglow.html.js';
 import { HslConverterHTML } from './html/hsl_converter.html.js';
-import { DraggableMeshGradientHTML } from './html/draggable_mesh_gradient.html.js'; // 👈 新增导入
+import { DraggableMeshGradientHTML } from './html/draggable_mesh_gradient.html.js';
 
 // 标准工具配置格式：
 // id: 唯一标识
@@ -21,7 +21,7 @@ export const ALL_TOOLS = [
     icon: 'color-wand',
     color: '#8b5cf6',
     type: 'native', 
-    routeName: 'DeepGlow', // 这个比较复杂，我们还是保留独立的原生页面
+    routeName: 'DeepGlow',
   },
   {
     id: 'hsl_tools',
@@ -29,7 +29,7 @@ export const ALL_TOOLS = [
     description: 'HSL 转 RGB/Hex，带触觉反馈的调色板。',
     icon: 'color-palette',
     color: '#f59e0b',
-    type: 'webview', // 这是一个网页小工具
+    type: 'webview',
     sourceHtml: HslConverterHTML, 
   },
   {
@@ -41,5 +41,4 @@ export const ALL_TOOLS = [
     type: 'webview',
     sourceHtml: DraggableMeshGradientHTML,
   },
-  // 以后在这里加新工具...
 ];

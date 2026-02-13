@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, useCallback } from 'react';
 import { View, StyleSheet } from 'react-native';
-import Toast from '../components/Toast'; // 引入 Toast 组件
+import Toast from '../components/common/Toast'; // 引入 Toast 组件
 
 const ToastContext = createContext();
 

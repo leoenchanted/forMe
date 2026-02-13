@@ -1,6 +1,6 @@
 import { Tabs } from "expo-router";
 import React from "react";
-import CustomTabBar from "../../src/components/CustomTabBar";
+import CustomTabBar from "../components/common/CustomTabBar";
 import { Platform } from "react-native";
 import { NativeTabs, Icon, Label } from "expo-router/unstable-native-tabs";
 

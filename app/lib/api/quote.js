@@ -5,30 +5,51 @@
 
 /**
  * 获取每日一句（英文 + 中文）
- * 使用金山词霸每日一句 API
+ * 优先使用快速的免费 API
  * @returns {Promise<Object>} 包含英文和中文的每日一句
  */
 export const fetchDailyQuote = async () => {
   try {
-    // 使用金山词霸每日一句 API
-    const response = await fetch('https://open.iciba.com/dsapi/');
-    const data = await response.json();
+    // 首先尝试 Hitokoto API（响应更快）
+    const hitokotoResponse = await Promise.race([
+      fetch('https://v1.hitokoto.cn/?c=d&c=i&c=k&encode=json'),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000))
+    ]);
+    
+    if (hitokotoResponse) {
+      const data = await hitokotoResponse.json();
+      if (data && data.hitokoto) {
+        return {
+          en: data.hitokoto,
+          zh: data.from || '来自网络',
+          source: data.from || 'Hitokoto',
+          date: new Date().toDateString(),
+        };
+      }
+    }
 
+    // 如果 Hitokoto 失败，尝试金山词霸 API
+    const jinshanResponse = await Promise.race([
+      fetch('https://open.iciba.com/dsapi/'),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+    ]);
+    
+    const data = await jinshanResponse.json();
     if (data && data.content) {
       return {
-        en: data.content, // 英文句子
-        zh: data.note, // 中文翻译
-        source: data.source || 'Unknown', // 来源
+        en: data.content,
+        zh: data.note,
+        source: data.source || 'Unknown',
         date: data.dateline || new Date().toDateString(),
-        picture: data.picture2, // 配图 URL (可选)
+        picture: data.picture2,
       };
     }
 
-    // 如果金山词霸 API 失败，使用备用方案
+    // 如果都失败，使用备用方案
     return await fetchDailyQuoteBackup();
   } catch (error) {
     console.error('获取每日一句失败:', error);
-    return await fetchDailyQuoteBackup();
+    return getDefaultQuote(); // 直接返回默认句子，避免多层调用
   }
 };
 
